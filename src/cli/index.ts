@@ -82,21 +82,27 @@ program
 
       spinner.stop();
 
-      // Check if no commands were found
+      // Check if no tests were run
       if (result.total === 0) {
         console.log('');
-        console.log(chalk.yellow('⚠️  No CLI commands detected'));
-        console.log('');
-        console.log(chalk.gray('📚 Tip: This tool currently supports CLI packages.'));
-        console.log(chalk.gray('   Library/module testing is coming soon!'));
+        console.log(chalk.yellow('⚠️  No tests were executed'));
         console.log('');
         console.log(chalk.gray('Package information:'));
         console.log(chalk.cyan(`  Name: ${result.package.name}`));
         console.log(chalk.cyan(`  Version: ${result.package.version}`));
         console.log('');
-        console.log(chalk.gray('To test this package:'));
-        console.log(chalk.gray('  • If it\'s a CLI package, ensure it has a "bin" field in package.json'));
-        console.log(chalk.gray('  • If it\'s a library, check back soon for library testing support!'));
+
+        if (result.package.type?.isCLI) {
+          console.log(chalk.gray('🔧 CLI Package detected, but no CLI commands found'));
+        } else if (result.package.type?.isLibrary) {
+          console.log(chalk.gray('📚 Library Package detected'));
+          console.log(chalk.gray('   Run with --ai-provider <provider> --ai-token <token> for AI-powered library testing'));
+        } else {
+          console.log(chalk.gray('📚 Tip: This package has no detectable CLI commands or library exports'));
+          console.log(chalk.gray('   • For CLI packages, ensure it has a "bin" field in package.json'));
+          console.log(chalk.gray('   • For library packages, ensure it has a "main" or "exports" field'));
+        }
+
         console.log('');
         process.exit(0);
       }
@@ -148,12 +154,14 @@ program
       if (packageInfo.commands.length === 0) {
         console.log(chalk.yellow('⚠️  No CLI commands detected'));
         console.log('');
-        console.log(chalk.gray('📚 Tip: This tool currently supports CLI packages.'));
-        console.log(chalk.gray('   Library/module testing is coming soon!'));
-        console.log('');
-        console.log(chalk.gray('If you believe this is a CLI package, check that:'));
-        console.log(chalk.gray('  • The package has a "bin" field in package.json'));
-        console.log(chalk.gray('  • The "bin" field points to valid executable files'));
+        if (packageInfo.type?.isLibrary) {
+          console.log(chalk.gray('📚 This is a library package (has exports or main field)'));
+          console.log(chalk.gray('   Use: npt test <package> for automated testing'));
+        } else {
+          console.log(chalk.gray('If you believe this is a CLI package, check that:'));
+          console.log(chalk.gray('  • The package has a "bin" field in package.json'));
+          console.log(chalk.gray('  • The "bin" field points to valid executable files'));
+        }
       } else {
         packageInfo.commands.forEach((cmd) => {
           const typeColor =
@@ -164,6 +172,54 @@ program
       }
 
       console.log('');
+
+      // Display library exports if available
+      if (packageInfo.exports) {
+        console.log(chalk.bold('📚 Library Exports'));
+        console.log(chalk.gray('─'.repeat(50)));
+
+        if (packageInfo.exports.hasDefaultExport) {
+          console.log(`  ${chalk.cyan('default')} ${chalk.gray(`(${packageInfo.exports.defaultExportType || 'unknown'})`)}`);
+        }
+
+        if (packageInfo.exports.namedExports && packageInfo.exports.namedExports.length > 0) {
+          console.log(chalk.gray('  Named exports:'));
+          for (const exp of packageInfo.exports.namedExports) {
+            console.log(
+              `    ${chalk.cyan(exp.name)} ${chalk.gray(`[${exp.type}]`)}${exp.description ? ` - ${exp.description}` : ''}`,
+            );
+          }
+        }
+
+        if (packageInfo.exports.typeDefinitions) {
+          console.log(`  ${chalk.green('✓')} TypeScript type definitions available`);
+          if (packageInfo.exports.typesPath) {
+            console.log(chalk.gray(`    Path: ${packageInfo.exports.typesPath}`));
+          }
+        }
+
+        console.log('');
+      }
+
+      // Display package type summary
+      if (packageInfo.type) {
+        console.log(chalk.bold('📊 Package Type'));
+        console.log(chalk.gray('─'.repeat(50)));
+
+        if (packageInfo.type.isCLI) {
+          console.log(`  ${chalk.green('✓')} CLI Package`);
+        }
+
+        if (packageInfo.type.isLibrary) {
+          console.log(`  ${chalk.green('✓')} Library Package`);
+        }
+
+        if (packageInfo.type.hasNoExports) {
+          console.log(`  ${chalk.yellow('⚠️')}  No testable exports found`);
+        }
+
+        console.log('');
+      }
     } catch (error) {
       spinner.fail(chalk.red('Analysis failed'));
       console.error(chalk.red('Error:'), (error as Error).message);
