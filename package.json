@@ -78,6 +78,8 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
+    "@babel/parser": "^7.23.6",
+    "@babel/traverse": "^7.23.6",
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "dockerode": "^4.0.2",

@@ -60,12 +60,50 @@ export interface LibraryExport {
   readonly name: string;
   /** Type of export */
   readonly type: LibraryExportType;
-  /** Description of what it does */
+  /** Description of what it does (from JSDoc or auto-detected) */
   readonly description?: string;
   /** Number of parameters (for functions) */
   readonly paramCount?: number;
   /** Whether it's async (for functions) */
   readonly isAsync?: boolean;
+  /** Function signature including parameters and return type */
+  readonly signature?: string;
+  /** JSDoc comment if available */
+  readonly jsDoc?: string;
+  /** For classes: public methods */
+  readonly methods?: readonly ClassMethod[];
+  /** For types/interfaces: properties */
+  readonly properties?: readonly TypeProperty[];
+}
+
+/**
+ * Class method information
+ */
+export interface ClassMethod {
+  /** Method name */
+  readonly name: string;
+  /** Method signature */
+  readonly signature?: string;
+  /** Method description from JSDoc */
+  readonly description?: string;
+  /** Is constructor */
+  readonly isConstructor?: boolean;
+  /** Is private */
+  readonly isPrivate?: boolean;
+}
+
+/**
+ * Type property information
+ */
+export interface TypeProperty {
+  /** Property name */
+  readonly name: string;
+  /** Property type */
+  readonly type?: string;
+  /** Is optional */
+  readonly optional?: boolean;
+  /** Property description */
+  readonly description?: string;
 }
 
 /**

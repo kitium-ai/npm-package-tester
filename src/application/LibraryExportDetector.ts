@@ -10,8 +10,15 @@ import {
   LibraryExportType,
   PackageType,
 } from '../domain/models/types';
+import { ASTExportParser } from './ASTExportParser';
 
 export class LibraryExportDetector {
+  private readonly astParser: ASTExportParser;
+
+  constructor() {
+    this.astParser = new ASTExportParser();
+  }
+
   /**
    * Detect package type and library exports
    */
@@ -204,10 +211,16 @@ export class LibraryExportDetector {
         return exports;
       }
 
-      const content = fs.readFileSync(entryPath, 'utf-8');
+      // Try AST-based parsing first for .js, .ts, .jsx, .tsx files
+      if (['.js', '.ts', '.jsx', '.tsx'].some((ext) => entryPath.endsWith(ext))) {
+        const astExports = this.astParser.parseFile(entryPath);
+        if (astExports.length > 0) {
+          return astExports;
+        }
+      }
 
-      // Simple regex-based extraction (not a full AST parser)
-      // This is a pragmatic approach that works for most packages
+      // Fall back to regex-based extraction
+      const content = fs.readFileSync(entryPath, 'utf-8');
 
       // Extract CommonJS: module.exports = { ... }
       const commonjsMatch = content.match(
@@ -220,11 +233,13 @@ export class LibraryExportDetector {
           if (names) {
             names.forEach((name) => {
               const cleanName = name.replace(/[:\s]/g, '');
-              exports.push({
-                name: cleanName,
-                type: LibraryExportType.NAMED,
-                description: undefined,
-              });
+              if (!exports.find((e) => e.name === cleanName)) {
+                exports.push({
+                  name: cleanName,
+                  type: LibraryExportType.NAMED,
+                  description: undefined,
+                });
+              }
             });
           }
         });
@@ -261,12 +276,6 @@ export class LibraryExportDetector {
             type: LibraryExportType.CLASS,
           });
         }
-      }
-
-      // Extract ES6: export default
-      if (content.includes('export default')) {
-        // Mark that default export exists (type would be determined at runtime)
-        // Named exports would still be extracted above
       }
 
       return exports;
