@@ -185,9 +185,38 @@ program
         if (packageInfo.exports.namedExports && packageInfo.exports.namedExports.length > 0) {
           console.log(chalk.gray('  Named exports:'));
           for (const exp of packageInfo.exports.namedExports) {
-            console.log(
-              `    ${chalk.cyan(exp.name)} ${chalk.gray(`[${exp.type}]`)}${exp.description ? ` - ${exp.description}` : ''}`,
-            );
+            // Format the export with type and description
+            let exportLine = `    ${chalk.cyan(exp.name)} ${chalk.gray(`[${exp.type}]`)}`;
+
+            // Add signature for functions
+            if (exp.signature) {
+              exportLine += ` ${chalk.gray(exp.signature)}`;
+            }
+
+            // Add description
+            if (exp.description) {
+              exportLine += ` - ${exp.description}`;
+            }
+
+            console.log(exportLine);
+
+            // Show methods for classes
+            if (exp.methods && exp.methods.length > 0) {
+              console.log(chalk.gray('      Methods:'));
+              for (const method of exp.methods) {
+                const methodLine = `        ${chalk.yellow(method.name)}${method.signature ? ` ${chalk.gray(method.signature)}` : ''}${method.description ? ` - ${method.description}` : ''}`;
+                console.log(methodLine);
+              }
+            }
+
+            // Show properties for types/interfaces
+            if (exp.properties && exp.properties.length > 0) {
+              console.log(chalk.gray('      Properties:'));
+              for (const prop of exp.properties) {
+                const propLine = `        ${chalk.yellow(prop.name)}${prop.optional ? '?' : ''}: ${chalk.gray(prop.type || 'unknown')}${prop.description ? ` - ${prop.description}` : ''}`;
+                console.log(propLine);
+              }
+            }
           }
         }
 
