@@ -1,10 +1,11 @@
 /**
- * Runs CLI command tests in Docker containers
+ * Runs CLI command tests and library tests in Docker containers
  */
 
 import {
   PackageInfo,
   CommandTestResult,
+  LibraryTestResult,
   PackageTestSummary,
   TestConfig,
   ProgressEvent,
@@ -12,23 +13,30 @@ import {
   TestEnvironment,
   PackageManager,
   CLICommand,
+  LibraryTestScenario,
 } from '../domain/models/types';
 import { DockerManager } from './DockerManager';
 import { PackageAnalyzer } from './PackageAnalyzer';
 import { ScenarioRunner } from './ScenarioRunner';
 import { ScenarioGenerator } from '../ai/ScenarioGenerator';
+import { LibraryScenarioRunner } from './LibraryScenarioRunner';
+import { LibraryScenarioGenerator } from '../ai/LibraryScenarioGenerator';
 
 export class TestRunner {
   private readonly dockerManager: DockerManager;
   private readonly packageAnalyzer: PackageAnalyzer;
   private readonly scenarioRunner: ScenarioRunner;
   private readonly scenarioGenerator: ScenarioGenerator;
+  private readonly libraryScenarioRunner: LibraryScenarioRunner;
+  private readonly libraryScenarioGenerator: LibraryScenarioGenerator;
 
   constructor() {
     this.dockerManager = new DockerManager();
     this.packageAnalyzer = new PackageAnalyzer();
     this.scenarioRunner = new ScenarioRunner(this.dockerManager);
     this.scenarioGenerator = new ScenarioGenerator(this.dockerManager);
+    this.libraryScenarioRunner = new LibraryScenarioRunner(this.dockerManager);
+    this.libraryScenarioGenerator = new LibraryScenarioGenerator();
   }
 
   /**
@@ -65,18 +73,21 @@ export class TestRunner {
       const testConfig = this.prepareConfig(config);
 
       // Run tests
-      const results = await this.runTests(packageInfo, testConfig, onProgress);
+      const { cliResults, libraryResults } = await this.runTests(packageInfo, testConfig, onProgress);
+      const allResults = [...cliResults, ...libraryResults];
 
       const duration = Date.now() - startTime;
 
       // Create summary
       const summary: PackageTestSummary = {
         package: packageInfo,
-        results,
-        total: results.length,
-        passed: results.filter((r) => r.passed).length,
-        failed: results.filter((r) => !r.passed).length,
-        success: results.every((r) => r.passed),
+        results: allResults,
+        cliResults: cliResults.length > 0 ? cliResults : undefined,
+        libraryResults: libraryResults.length > 0 ? libraryResults : undefined,
+        total: allResults.length,
+        passed: allResults.filter((r) => r.passed).length,
+        failed: allResults.filter((r) => !r.passed).length,
+        success: allResults.every((r) => r.passed),
         duration,
       };
 
@@ -98,14 +109,19 @@ export class TestRunner {
   }
 
   /**
-   * Run all tests
+   * Run all tests (CLI and library)
    */
   private async runTests(
     packageInfo: PackageInfo,
     config: TestConfig,
     onProgress?: (event: ProgressEvent) => void,
-  ): Promise<CommandTestResult[]> {
-    const results: CommandTestResult[] = [];
+  ): Promise<{ cliResults: CommandTestResult[]; libraryResults: LibraryTestResult[] }> {
+    const cliResults: CommandTestResult[] = [];
+    const libraryResults: LibraryTestResult[] = [];
+
+    // Determine if we should test library exports
+    const hasLibrary = packageInfo.type?.isLibrary && packageInfo.exports;
+    const hasCLI = packageInfo.commands.length > 0;
 
     for (const nodeVersion of config.nodeVersions) {
       const environment: TestEnvironment = {
@@ -149,25 +165,27 @@ export class TestRunner {
             message: `✨ Generated ${aiScenarios.length} AI test scenarios`,
           });
 
-          // Run AI-generated scenarios
-          for (const scenario of aiScenarios) {
-            const command = packageInfo.commands[0]; // Use first command
-            const result = await this.scenarioRunner.runScenario(
-              container.id,
-              packageInfo.name,
-              command.name,
-              scenario,
-              nodeVersion,
-              command,
-              onProgress,
-            );
-            // Mark as AI-generated test
-            results.push({
-              ...result,
-              scenarioName: scenario.name,
-              testType: 'ai-generated' as const,
-              args: scenario.args || [],
-            });
+          // Run AI-generated scenarios for CLI if available
+          if (hasCLI) {
+            for (const scenario of aiScenarios) {
+              const command = packageInfo.commands[0]; // Use first command
+              const result = await this.scenarioRunner.runScenario(
+                container.id,
+                packageInfo.name,
+                command.name,
+                scenario,
+                nodeVersion,
+                command,
+                onProgress,
+              );
+              // Mark as AI-generated test
+              cliResults.push({
+                ...result,
+                scenarioName: scenario.name,
+                testType: 'ai-generated' as const,
+                args: scenario.args || [],
+              });
+            }
           }
         } catch (error) {
           this.emitProgress(onProgress, {
@@ -178,8 +196,8 @@ export class TestRunner {
         }
       }
 
-      // Run default tests if not skipped
-      if (!config.skipDefaultTests) {
+      // Run default CLI tests if not skipped
+      if (!config.skipDefaultTests && hasCLI) {
         // Test each command
         for (const command of packageInfo.commands) {
           this.emitProgress(onProgress, {
@@ -196,7 +214,7 @@ export class TestRunner {
             nodeVersion,
             command,
           );
-          results.push({
+          cliResults.push({
             ...helpResult,
             scenarioName: `${command.name} --help`,
             testType: 'default' as const,
@@ -211,7 +229,7 @@ export class TestRunner {
             nodeVersion,
             command,
           );
-          results.push({
+          cliResults.push({
             ...versionResult,
             scenarioName: `${command.name} --version`,
             testType: 'default' as const,
@@ -226,7 +244,7 @@ export class TestRunner {
             nodeVersion,
             command,
           );
-          results.push({
+          cliResults.push({
             ...noArgsResult,
             scenarioName: `${command.name} (no args)`,
             testType: 'default' as const,
@@ -234,9 +252,128 @@ export class TestRunner {
           });
         }
       }
+
+      // Run library tests if available
+      if (hasLibrary && packageInfo.exports) {
+        try {
+          await this.runLibraryTests(
+            packageInfo,
+            container.id,
+            nodeVersion,
+            config,
+            libraryResults,
+            onProgress,
+          );
+        } catch (error) {
+          this.emitProgress(onProgress, {
+            stage: TestStage.ERROR,
+            message: `Library testing failed: ${(error as Error).message}`,
+          });
+          console.error('Library test error:', error);
+        }
+      }
     }
 
-    return results;
+    return { cliResults, libraryResults };
+  }
+
+  /**
+   * Run library tests for a package
+   */
+  private async runLibraryTests(
+    packageInfo: PackageInfo,
+    containerId: string,
+    nodeVersion: string,
+    config: TestConfig,
+    libraryResults: LibraryTestResult[],
+    onProgress?: (event: ProgressEvent) => void,
+  ): Promise<void> {
+    if (!packageInfo.exports) {
+      return;
+    }
+
+    // Generate library test scenarios
+    let scenarios: LibraryTestScenario[] = [];
+
+    if (config.ai) {
+      this.emitProgress(onProgress, {
+        stage: TestStage.TESTING_COMMAND,
+        message: '🤖 Generating library test scenarios with AI...',
+      });
+
+      try {
+        scenarios = await this.libraryScenarioGenerator.generateScenarios(
+          packageInfo,
+          packageInfo.exports,
+          config.ai,
+        );
+
+        this.emitProgress(onProgress, {
+          stage: TestStage.TESTING_COMMAND,
+          message: `✨ Generated ${scenarios.length} library test scenarios`,
+        });
+      } catch (error) {
+        this.emitProgress(onProgress, {
+          stage: TestStage.ERROR,
+          message: `AI library scenario generation failed: ${(error as Error).message}`,
+        });
+        console.error('AI library generation error:', error);
+        // Continue without AI scenarios
+      }
+    } else {
+      // Generate basic default library tests (import and instantiate)
+      scenarios = this.generateBasicLibraryScenarios(packageInfo, packageInfo.exports);
+    }
+
+    // Run library test scenarios
+    for (const scenario of scenarios) {
+      this.emitProgress(onProgress, {
+        stage: TestStage.TESTING_COMMAND,
+        message: `Testing library scenario: ${scenario.name}`,
+      });
+
+      const result = await this.libraryScenarioRunner.runScenario(
+        containerId,
+        scenario,
+        nodeVersion,
+      );
+
+      libraryResults.push(result);
+    }
+  }
+
+  /**
+   * Generate basic library test scenarios (default tests without AI)
+   */
+  private generateBasicLibraryScenarios(
+    packageInfo: PackageInfo,
+    exports: any,
+  ): LibraryTestScenario[] {
+    const scenarios: LibraryTestScenario[] = [];
+
+    // Test default import
+    scenarios.push({
+      name: 'import-default',
+      description: 'Test importing the package',
+      importStatement: `const pkg = require('${packageInfo.name}')`,
+      testCode: `console.log(typeof pkg); console.log('TEST_PASSED');`,
+      expectedOutput: 'object',
+      expectError: false,
+    });
+
+    // Test named imports if available
+    if (exports.namedExports && exports.namedExports.length > 0) {
+      const firstExport = exports.namedExports[0];
+      scenarios.push({
+        name: 'import-named',
+        description: `Test importing named export "${firstExport.name}"`,
+        importStatement: `const { ${firstExport.name} } = require('${packageInfo.name}')`,
+        testCode: `console.log(typeof ${firstExport.name}); console.log('TEST_PASSED');`,
+        expectError: false,
+      });
+    }
+
+    return scenarios;
   }
 
   /**
