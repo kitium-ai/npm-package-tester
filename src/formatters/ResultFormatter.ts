@@ -3,7 +3,12 @@
  */
 
 import chalk from 'chalk';
-import { PackageTestSummary, CommandTestResult, ProgressEvent } from '../domain/models/types';
+import {
+  PackageTestSummary,
+  CommandTestResult,
+  ProgressEvent,
+  TypeValidationReport,
+} from '../domain/models/types';
 
 export class ResultFormatter {
   /**
@@ -28,8 +33,11 @@ export class ResultFormatter {
     }
     lines.push('');
 
-    // Group results by Node version
-    const byNodeVersion = this.groupByNodeVersion(summary.results);
+    // Group results by Node version (only CLI tests)
+    const cliResults = summary.results.filter(
+      (r): r is CommandTestResult => 'command' in r,
+    );
+    const byNodeVersion = this.groupByNodeVersion(cliResults);
 
     for (const [nodeVersion, results] of Object.entries(byNodeVersion)) {
       lines.push(chalk.bold(`🐳 Node ${nodeVersion}`));
@@ -55,51 +63,102 @@ export class ResultFormatter {
     lines.push(chalk.gray('─'.repeat(50)));
     lines.push('');
 
-    // Group by test type
-    const aiTests = summary.results.filter((r) => r.testType === 'ai-generated');
-    const defaultTests = summary.results.filter((r) => r.testType === 'default');
-    const customTests = summary.results.filter((r) => r.testType === 'custom');
+    // Separate CLI and library tests
+    const cliTests = summary.cliResults || [];
+    const libraryTests = summary.libraryResults || [];
 
-    if (aiTests.length > 0) {
-      lines.push(chalk.bold.cyan('  🤖 AI-Generated Tests'));
-      for (const test of aiTests) {
-        const icon = test.passed ? chalk.green('  ✓') : chalk.red('  ✗');
-        const args = test.args && test.args.length > 0 ? ` ${test.args.join(' ')}` : '';
-        lines.push(
-          `  ${icon} ${test.scenarioName || test.command.name}${args} ${chalk.gray(`(${test.duration}ms)`)}`,
-        );
-        if (!test.passed && test.error) {
-          lines.push(`      ${chalk.red(test.error)}`);
+    // CLI Tests Section
+    if (cliTests.length > 0) {
+      lines.push(chalk.bold.blue('  🔧 CLI Tests'));
+
+      // Group CLI tests by type
+      const cliAiTests = cliTests.filter((r) => r.testType === 'ai-generated');
+      const cliDefaultTests = cliTests.filter((r) => r.testType === 'default');
+      const cliCustomTests = cliTests.filter((r) => r.testType === 'custom');
+
+      if (cliDefaultTests.length > 0) {
+        lines.push(chalk.bold.yellow('    🎯 Default Tests'));
+        for (const test of cliDefaultTests) {
+          const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
+          lines.push(
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
+          );
+          if (!test.passed && test.error) {
+            lines.push(`        ${chalk.red(test.error)}`);
+          }
         }
       }
+
+      if (cliAiTests.length > 0) {
+        lines.push(chalk.bold.cyan('    🤖 AI-Generated Tests'));
+        for (const test of cliAiTests) {
+          const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
+          const args = (test as CommandTestResult).args && (test as CommandTestResult).args!.length > 0
+            ? ` ${(test as CommandTestResult).args!.join(' ')}`
+            : '';
+          lines.push(
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name}${args} ${chalk.gray(`(${test.duration}ms)`)}`,
+          );
+          if (!test.passed && test.error) {
+            lines.push(`        ${chalk.red(test.error)}`);
+          }
+        }
+      }
+
+      if (cliCustomTests.length > 0) {
+        lines.push(chalk.bold.magenta('    🎨 Custom Tests'));
+        for (const test of cliCustomTests) {
+          const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
+          lines.push(
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
+          );
+          if (!test.passed && test.error) {
+            lines.push(`        ${chalk.red(test.error)}`);
+          }
+        }
+      }
+
       lines.push('');
     }
 
-    if (defaultTests.length > 0) {
-      lines.push(chalk.bold.yellow('  🎯 Default Tests'));
-      for (const test of defaultTests) {
-        const icon = test.passed ? chalk.green('  ✓') : chalk.red('  ✗');
-        lines.push(
-          `  ${icon} ${test.scenarioName || test.command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
-        );
-        if (!test.passed && test.error) {
-          lines.push(`      ${chalk.red(test.error)}`);
+    // Library Tests Section
+    if (libraryTests.length > 0) {
+      lines.push(chalk.bold.green('  📚 Library Tests'));
+
+      // Group library tests by type
+      const libAiTests = libraryTests.filter((r) => r.testType === 'ai-generated');
+      const libDefaultTests = libraryTests.filter((r) => r.testType === 'library');
+
+      if (libDefaultTests.length > 0) {
+        lines.push(chalk.bold.yellow('    🎯 Default Tests'));
+        for (const test of libDefaultTests) {
+          const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
+          lines.push(`    ${icon} ${test.name} ${chalk.gray(`(${test.duration}ms)`)}`);
+          if (!test.passed && test.error) {
+            lines.push(`        ${chalk.red(test.error)}`);
+          }
         }
       }
+
+      if (libAiTests.length > 0) {
+        lines.push(chalk.bold.cyan('    🤖 AI-Generated Tests'));
+        for (const test of libAiTests) {
+          const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
+          lines.push(`    ${icon} ${test.name} ${chalk.gray(`(${test.duration}ms)`)}`);
+          if (!test.passed && test.error) {
+            lines.push(`        ${chalk.red(test.error)}`);
+          }
+        }
+      }
+
       lines.push('');
     }
 
-    if (customTests.length > 0) {
-      lines.push(chalk.bold.magenta('  🎨 Custom Tests'));
-      for (const test of customTests) {
-        const icon = test.passed ? chalk.green('  ✓') : chalk.red('  ✗');
-        lines.push(
-          `  ${icon} ${test.scenarioName || test.command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
-        );
-        if (!test.passed && test.error) {
-          lines.push(`      ${chalk.red(test.error)}`);
-        }
-      }
+    // Type validation results
+    if (summary.typeValidation) {
+      lines.push(chalk.bold('🔍 Type Validation & Documentation'));
+      lines.push(chalk.gray('─'.repeat(50)));
+      lines.push(this.formatTypeValidation(summary.typeValidation));
       lines.push('');
     }
 
@@ -195,5 +254,80 @@ export class ResultFormatter {
       default:
         return '•';
     }
+  }
+
+  /**
+   * Format type validation results
+   */
+  private formatTypeValidation(validation: TypeValidationReport): string {
+    const lines: string[] = [];
+
+    // Overall validation status
+    const statusIcon = validation.valid ? chalk.green('✓') : chalk.yellow('⚠️');
+    lines.push(`${statusIcon} ${validation.valid ? 'Type definitions valid' : 'Some type issues found'}`);
+    lines.push('');
+
+    // Export statistics
+    lines.push(`  Typed Exports: ${chalk.green(validation.typedExports)}`);
+    lines.push(`  Untyped Exports: ${chalk.yellow(validation.untypedExports)}`);
+    lines.push(`  Undocumented Exports: ${chalk.yellow(validation.undocumentedExports)}`);
+    lines.push(`  Documentation Coverage: ${this.getCoverageBar(validation.documentationCoverage)}`);
+    lines.push('');
+
+    // Issues summary
+    if (validation.issues.length > 0) {
+      const errors = validation.issues.filter((i) => i.severity === 'error');
+      const warnings = validation.issues.filter((i) => i.severity === 'warning');
+      const infos = validation.issues.filter((i) => i.severity === 'info');
+
+      if (errors.length > 0) {
+        lines.push(`  ${chalk.red(`❌ Errors (${errors.length})`)}`);
+        for (const issue of errors.slice(0, 3)) {
+          lines.push(`    • ${chalk.red(issue.message)}`);
+        }
+        if (errors.length > 3) {
+          lines.push(`    • ${chalk.gray(`+${errors.length - 3} more errors`)}`);
+        }
+      }
+
+      if (warnings.length > 0) {
+        lines.push(`  ${chalk.yellow(`⚠️  Warnings (${warnings.length})`)}`);
+        for (const issue of warnings.slice(0, 3)) {
+          lines.push(`    • ${chalk.yellow(issue.message)}`);
+        }
+        if (warnings.length > 3) {
+          lines.push(`    • ${chalk.gray(`+${warnings.length - 3} more warnings`)}`);
+        }
+      }
+
+      if (infos.length > 0 && errors.length === 0 && warnings.length === 0) {
+        lines.push(`  ${chalk.blue(`ℹ️  Info (${infos.length})`)}`);
+        for (const issue of infos.slice(0, 3)) {
+          lines.push(`    • ${chalk.blue(issue.message)}`);
+        }
+        if (infos.length > 3) {
+          lines.push(`    • ${chalk.gray(`+${infos.length - 3} more info`)}`);
+        }
+      }
+    } else {
+      lines.push(chalk.green('  ✓ No issues found'));
+    }
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Get a visual coverage bar
+   */
+  private getCoverageBar(coverage: number): string {
+    const percentage = Math.round(coverage);
+    const bars = Math.round(percentage / 5);
+    const empty = 20 - bars;
+    const bar = '█'.repeat(bars) + '░'.repeat(empty);
+
+    const color =
+      percentage >= 75 ? chalk.green : percentage >= 50 ? chalk.yellow : chalk.red;
+
+    return `${color(bar)} ${percentage}%`;
   }
 }

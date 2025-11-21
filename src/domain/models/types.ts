@@ -22,6 +22,154 @@ export interface PackageInfo {
   readonly engines?: Record<string, string>;
   /** Example commands from npt.examples field */
   readonly examples?: readonly CLIExample[];
+  /** Library exports (if package exports a library) */
+  readonly exports?: LibraryExports;
+  /** Package type info */
+  readonly type?: PackageType;
+}
+
+/**
+ * Package type detection
+ */
+export interface PackageType {
+  /** Is this a CLI package (has bin field) */
+  readonly isCLI: boolean;
+  /** Is this a library package (has main/exports field) */
+  readonly isLibrary: boolean;
+  /** Has no testable exports or commands */
+  readonly hasNoExports: boolean;
+}
+
+/**
+ * Library export type
+ */
+export enum LibraryExportType {
+  DEFAULT = 'default',
+  NAMED = 'named',
+  CLASS = 'class',
+  FUNCTION = 'function',
+  CONSTANT = 'constant',
+  TYPE = 'type',
+}
+
+/**
+ * Single exported entity from a library
+ */
+export interface LibraryExport {
+  /** Export name */
+  readonly name: string;
+  /** Type of export */
+  readonly type: LibraryExportType;
+  /** Description of what it does (from JSDoc or auto-detected) */
+  readonly description?: string;
+  /** Number of parameters (for functions) */
+  readonly paramCount?: number;
+  /** Whether it's async (for functions) */
+  readonly isAsync?: boolean;
+  /** Function signature including parameters and return type */
+  readonly signature?: string;
+  /** JSDoc comment if available */
+  readonly jsDoc?: string;
+  /** For classes: public methods */
+  readonly methods?: readonly ClassMethod[];
+  /** For types/interfaces: properties */
+  readonly properties?: readonly TypeProperty[];
+}
+
+/**
+ * Class method information
+ */
+export interface ClassMethod {
+  /** Method name */
+  readonly name: string;
+  /** Method signature */
+  readonly signature?: string;
+  /** Method description from JSDoc */
+  readonly description?: string;
+  /** Is constructor */
+  readonly isConstructor?: boolean;
+  /** Is private */
+  readonly isPrivate?: boolean;
+}
+
+/**
+ * Type property information
+ */
+export interface TypeProperty {
+  /** Property name */
+  readonly name: string;
+  /** Property type */
+  readonly type?: string;
+  /** Is optional */
+  readonly optional?: boolean;
+  /** Property description */
+  readonly description?: string;
+}
+
+/**
+ * All library exports from a package
+ */
+export interface LibraryExports {
+  /** Package has a default export */
+  readonly hasDefaultExport: boolean;
+  /** Type of default export (class, function, object, etc) */
+  readonly defaultExportType?: string;
+  /** Named exports available */
+  readonly namedExports: readonly LibraryExport[];
+  /** Main entry point file */
+  readonly entryPoint: string;
+  /** Export format (CommonJS or ESM) */
+  readonly exportFormat: 'commonjs' | 'esm' | 'hybrid';
+  /** Has TypeScript type definitions */
+  readonly typeDefinitions: boolean;
+  /** Path to type definitions file if available */
+  readonly typesPath?: string;
+}
+
+/**
+ * Library test scenario
+ */
+export interface LibraryTestScenario {
+  /** Scenario name */
+  readonly name: string;
+  /** What this test validates */
+  readonly description?: string;
+  /** Import statement (e.g., const { func } = require('pkg')) */
+  readonly importStatement: string;
+  /** JavaScript/TypeScript test code to execute */
+  readonly testCode: string;
+  /** Expected output pattern */
+  readonly expectedOutput?: string | RegExp;
+  /** Expect an error to be thrown */
+  readonly expectError?: boolean;
+  /** Optional setup (file creation, etc) */
+  readonly setup?: TestSetup;
+}
+
+/**
+ * Library test result
+ */
+export interface LibraryTestResult {
+  /** Test scenario name */
+  readonly name: string;
+  /** Node version tested */
+  readonly nodeVersion: string;
+  /** Test passed */
+  readonly passed: boolean;
+  /** Duration in ms */
+  readonly duration: number;
+  /** Standard output */
+  readonly stdout: string;
+  /** Standard error */
+  readonly stderr: string;
+  /** Error message if failed */
+  readonly error?: string;
+  /** Exit code */
+  readonly exitCode: number;
+  /** Test type */
+  readonly testType: 'library' | 'ai-generated';
+  /** Exported entity being tested */
+  readonly exportTested?: string;
 }
 
 /**
@@ -243,13 +391,45 @@ export interface CommandTestResult {
 }
 
 /**
+ * Type validation result for library exports
+ */
+export interface TypeValidationReport {
+  /** Whether all validations passed */
+  readonly valid: boolean;
+  /** Number of typed exports */
+  readonly typedExports: number;
+  /** Number of untyped exports */
+  readonly untypedExports: number;
+  /** Number of exports without documentation */
+  readonly undocumentedExports: number;
+  /** Documentation coverage percentage (0-100) */
+  readonly documentationCoverage: number;
+  /** Validation issues */
+  readonly issues: ValidationIssue[];
+}
+
+/**
+ * Single validation issue
+ */
+export interface ValidationIssue {
+  /** Issue type */
+  readonly type: 'missing-type' | 'missing-export' | 'untyped' | 'undocumented' | 'deprecated';
+  /** Export name */
+  readonly exportName: string;
+  /** Issue description */
+  readonly message: string;
+  /** Severity level */
+  readonly severity: 'error' | 'warning' | 'info';
+}
+
+/**
  * Test summary for entire package
  */
 export interface PackageTestSummary {
   /** Package info */
   readonly package: PackageInfo;
-  /** All test results */
-  readonly results: readonly CommandTestResult[];
+  /** All test results (CLI and/or library tests) */
+  readonly results: readonly (CommandTestResult | LibraryTestResult)[];
   /** Total tests run */
   readonly total: number;
   /** Tests passed */
@@ -260,6 +440,12 @@ export interface PackageTestSummary {
   readonly success: boolean;
   /** Total duration */
   readonly duration: number;
+  /** CLI test results (if any) */
+  readonly cliResults?: readonly CommandTestResult[];
+  /** Library test results (if any) */
+  readonly libraryResults?: readonly LibraryTestResult[];
+  /** Type validation results (if library package) */
+  readonly typeValidation?: TypeValidationReport;
 }
 
 /**
