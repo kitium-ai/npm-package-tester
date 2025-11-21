@@ -8,11 +8,12 @@
 [![GitHub issues](https://img.shields.io/github/issues/kitium-ai/npm-package-tester.svg)](https://github.com/kitium-ai/npm-package-tester/issues)
 [![GitHub stars](https://img.shields.io/github/stars/kitium-ai/npm-package-tester.svg?style=social)](https://github.com/kitium-ai/npm-package-tester)
 
-🧪 **Automatically test npm packages by discovering their CLI commands and running them in isolated Docker environments**
+🧪 **Automatically test npm CLI packages by discovering their CLI commands and running them in isolated Docker environments**
 
 🤖 **AI-Powered**: Generate realistic test scenarios using Claude, GPT-4, Gemini, or Groq
 🔐 **Private Packages**: Full support for private npm packages and custom registries
 ⚡ **Fast & Reliable**: Run tests in parallel across multiple Node versions
+📚 **Library Testing**: Coming soon! (Currently supports CLI packages)
 
 ---
 
@@ -52,11 +53,14 @@ When you publish an npm package with CLI commands, you need to verify:
 ## The Solution
 
 `npm-package-tester` automatically:
-1. 📦 Analyzes your package.json to detect CLI commands
+1. 📦 Analyzes your package.json to detect CLI commands (from `bin` field)
 2. 🐳 Creates fresh Docker containers with specified Node versions
 3. 📥 Installs your package
 4. 🧪 Runs each CLI command with common flags (--help, --version, etc.)
 5. ✅ Reports which commands work and which don't
+
+**Current Scope**: CLI packages with `bin` commands
+**Coming Soon**: Library/module export testing
 
 ## Features
 
@@ -403,16 +407,28 @@ npm-package-tester
 
 ## Limitations
 
-- Only tests packages with CLI commands
-- Requires Docker (no Windows native support yet)
-- Can't test interactive prompts automatically
-- Network-dependent (pulls Docker images)
-- AI features require API credits
+- **CLI-Only**: Currently only tests packages with CLI commands (library/module testing coming soon)
+- **Docker Required**: Requires Docker (no Windows native support yet)
+- **No Interactive Testing**: Can't test interactive prompts automatically
+- **Network-Dependent**: Pulls Docker images on demand
+- **AI Costs**: AI features require API credits (Anthropic, OpenAI, Google, or Groq)
 
 ## Roadmap
 
+### High Priority
+
+- [ ] **Library/Module Export Testing** - Test npm packages exported as libraries (default export, named exports, classes, utilities)
+- [ ] **Export API Analysis** - Detect and validate exported functions, classes, and types
+- [ ] **AI Library Scenarios** - Generate realistic test scenarios for library usage patterns
+- [ ] **Type Validation** - Validate TypeScript type definitions and JSDoc comments
+
+### Completed
+
 - [x] AI-powered test scenario generation
 - [x] Multi-provider AI support (Anthropic, OpenAI, Google, Groq)
+
+### Future Enhancements
+
 - [ ] Support testing interactive CLIs
 - [ ] Cloud runners (no local Docker needed)
 - [ ] Performance benchmarking
@@ -421,6 +437,8 @@ npm-package-tester
 - [ ] Custom Docker images
 - [ ] CI/CD badges
 - [ ] Historical test tracking
+- [ ] Podman support (Docker alternative)
+- [ ] Local execution mode (without Docker)
 
 ## Contributing
 

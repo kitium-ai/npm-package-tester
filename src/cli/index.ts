@@ -82,6 +82,25 @@ program
 
       spinner.stop();
 
+      // Check if no commands were found
+      if (result.total === 0) {
+        console.log('');
+        console.log(chalk.yellow('⚠️  No CLI commands detected'));
+        console.log('');
+        console.log(chalk.gray('📚 Tip: This tool currently supports CLI packages.'));
+        console.log(chalk.gray('   Library/module testing is coming soon!'));
+        console.log('');
+        console.log(chalk.gray('Package information:'));
+        console.log(chalk.cyan(`  Name: ${result.package.name}`));
+        console.log(chalk.cyan(`  Version: ${result.package.version}`));
+        console.log('');
+        console.log(chalk.gray('To test this package:'));
+        console.log(chalk.gray('  • If it\'s a CLI package, ensure it has a "bin" field in package.json'));
+        console.log(chalk.gray('  • If it\'s a library, check back soon for library testing support!'));
+        console.log('');
+        process.exit(0);
+      }
+
       // Display results
       console.log(formatter.formatSummary(result));
 
@@ -127,7 +146,14 @@ program
       console.log(chalk.gray('─'.repeat(50)));
 
       if (packageInfo.commands.length === 0) {
-        console.log(chalk.yellow('  No CLI commands found'));
+        console.log(chalk.yellow('⚠️  No CLI commands detected'));
+        console.log('');
+        console.log(chalk.gray('📚 Tip: This tool currently supports CLI packages.'));
+        console.log(chalk.gray('   Library/module testing is coming soon!'));
+        console.log('');
+        console.log(chalk.gray('If you believe this is a CLI package, check that:'));
+        console.log(chalk.gray('  • The package has a "bin" field in package.json'));
+        console.log(chalk.gray('  • The "bin" field points to valid executable files'));
       } else {
         packageInfo.commands.forEach((cmd) => {
           const typeColor =
