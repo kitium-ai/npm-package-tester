@@ -1,13 +1,28 @@
 /**
- * Analyzes npm packages to extract CLI commands
+ * Analyzes npm packages to extract CLI commands and library exports
  */
 
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import * as path from 'path';
 import execa from 'execa';
-import { PackageInfo, CLICommand, CommandType, CLIExample } from '../domain/models/types';
+import {
+  PackageInfo,
+  CLICommand,
+  CommandType,
+  CLIExample,
+  LibraryExports,
+  PackageType,
+} from '../domain/models/types';
+import { LibraryExportDetector } from './LibraryExportDetector';
 
 export class PackageAnalyzer {
+  private readonly libraryDetector: LibraryExportDetector;
+
+  constructor() {
+    this.libraryDetector = new LibraryExportDetector();
+  }
+
   /**
    * Analyze a package from npm registry or local path
    */
@@ -29,7 +44,10 @@ export class PackageAnalyzer {
     const content = await fs.readFile(packageJsonPath, 'utf-8');
     const packageJson = JSON.parse(content) as Record<string, unknown>;
 
-    return this.extractPackageInfo(packageJson);
+    // Detect library exports for local packages
+    const { exports, type } = await this.libraryDetector.detectLibraryExports(packagePath);
+
+    return this.extractPackageInfo(packageJson, exports, type);
   }
 
   /**
@@ -39,7 +57,17 @@ export class PackageAnalyzer {
     try {
       const { stdout } = await execa('npm', ['view', `${packageName}@latest`, '--json']);
       const packageJson = JSON.parse(stdout) as Record<string, unknown>;
-      return this.extractPackageInfo(packageJson);
+
+      // For npm packages, we can't detect library exports from registry
+      // (would need to download and inspect files)
+      // So we infer package type from package.json metadata
+      const type: PackageType = {
+        isCLI: !!(packageJson.bin && Object.keys(packageJson.bin as Record<string, unknown> || {}).length > 0),
+        isLibrary: !!(packageJson.main || packageJson.exports || packageJson.module),
+        hasNoExports: !(packageJson.bin || packageJson.main || packageJson.exports || packageJson.module),
+      };
+
+      return this.extractPackageInfo(packageJson, undefined, type);
     } catch (error) {
       throw new Error(`Failed to fetch package ${packageName}: ${(error as Error).message}`);
     }
@@ -48,7 +76,11 @@ export class PackageAnalyzer {
   /**
    * Extract package information from package.json
    */
-  private extractPackageInfo(packageJson: Record<string, unknown>): PackageInfo {
+  private extractPackageInfo(
+    packageJson: Record<string, unknown>,
+    exports?: LibraryExports,
+    type?: PackageType,
+  ): PackageInfo {
     const name = packageJson.name as string;
     const version = packageJson.version as string;
     const description = packageJson.description as string | undefined;
@@ -59,6 +91,13 @@ export class PackageAnalyzer {
     const commands = this.extractCommands(packageJson);
     const examples = this.extractExamples(packageJson);
 
+    // Determine package type if not provided
+    const packageType: PackageType = type || {
+      isCLI: commands.length > 0,
+      isLibrary: !!exports || !!(packageJson.main || packageJson.exports || packageJson.module),
+      hasNoExports: commands.length === 0 && !exports && !(packageJson.main || packageJson.exports || packageJson.module),
+    };
+
     return {
       name,
       version,
@@ -68,6 +107,8 @@ export class PackageAnalyzer {
       peerDependencies,
       engines,
       examples,
+      exports,
+      type: packageType,
     };
   }
 
