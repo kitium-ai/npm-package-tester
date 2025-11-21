@@ -8,12 +8,12 @@
 [![GitHub issues](https://img.shields.io/github/issues/kitium-ai/npm-package-tester.svg)](https://github.com/kitium-ai/npm-package-tester/issues)
 [![GitHub stars](https://img.shields.io/github/stars/kitium-ai/npm-package-tester.svg?style=social)](https://github.com/kitium-ai/npm-package-tester)
 
-🧪 **Automatically test npm CLI packages by discovering their CLI commands and running them in isolated Docker environments**
+🧪 **Automatically test npm packages (CLI and libraries) by discovering their commands and exports, running them in isolated Docker environments**
 
 🤖 **AI-Powered**: Generate realistic test scenarios using Claude, GPT-4, Gemini, or Groq
 🔐 **Private Packages**: Full support for private npm packages and custom registries
 ⚡ **Fast & Reliable**: Run tests in parallel across multiple Node versions
-📚 **Library Testing**: Coming soon! (Currently supports CLI packages)
+📚 **Library Testing**: Validate exported functions, classes, and utilities with automatic API testing
 
 ---
 
@@ -40,7 +40,9 @@
 
 ## The Problem
 
-When you publish an npm package with CLI commands, you need to verify:
+When you publish an npm package, you need to verify:
+
+**For CLI packages:**
 - ✅ Does it install correctly?
 - ✅ Do all CLI commands work?
 - ✅ Does it work across different Node versions?
@@ -48,31 +50,54 @@ When you publish an npm package with CLI commands, you need to verify:
 - ✅ Does the --version flag work?
 - ✅ Does it run without crashing?
 
-**Manual testing is tedious and error-prone.**
+**For library packages:**
+- ✅ Can the package be imported correctly?
+- ✅ Do exported functions/classes work as expected?
+- ✅ Do all main APIs function properly?
+- ✅ Are exports correctly exposed?
+- ✅ Does it work across different Node versions?
+
+**Manual testing is tedious and error-prone. Testing scope expands exponentially with multiple Node versions.**
 
 ## The Solution
 
 `npm-package-tester` automatically:
+
+**For CLI packages:**
 1. 📦 Analyzes your package.json to detect CLI commands (from `bin` field)
 2. 🐳 Creates fresh Docker containers with specified Node versions
 3. 📥 Installs your package
 4. 🧪 Runs each CLI command with common flags (--help, --version, etc.)
 5. ✅ Reports which commands work and which don't
 
-**Current Scope**: CLI packages with `bin` commands
-**Coming Soon**: Library/module export testing
+**For library packages:**
+1. 📦 Analyzes your package.json to detect exports (main, exports, module fields)
+2. 🐳 Creates fresh Docker containers with specified Node versions
+3. 📥 Installs your package
+4. 🧪 Tests package imports and API calls (with AI-powered scenario generation)
+5. ✅ Reports which exports work and validates their functionality
 
 ## Features
 
-- 🔍 **Auto-Discovery**: Automatically detects all CLI commands from `package.json`
-- 🐳 **Docker Isolation**: Tests in clean environments
-- 🔄 **Multi-Version**: Test across Node 16, 18, 20, etc.
-- ⚡ **Parallel Testing**: Run tests concurrently for speed
-- 📊 **Detailed Reports**: Clear pass/fail results with complete test breakdown
+**CLI Testing:**
+- 🔍 **Auto-Discovery**: Automatically detects all CLI commands from `package.json` `bin` field
 - 🎯 **Smart Testing**: Automatically tries --help, --version, and no-args
 - 🤖 **AI-Powered Scenarios**: Generate realistic test scenarios using Claude, GPT-4, Gemini, or Groq
+- 📊 **Custom Tests**: Define your own test cases with setup and validation
+
+**Library Testing:**
+- 🔍 **Export Detection**: Automatically detects and analyzes all exported functions, classes, and constants
+- 📚 **Import Testing**: Validates that exports can be imported and used correctly
+- 🤖 **AI-Powered Library Tests**: Generate realistic usage scenarios for library APIs
+- ✨ **Type Support**: Detects TypeScript type definitions and validates type compatibility
+
+**General Features:**
+- 🐳 **Docker Isolation**: Tests run in isolated, clean environments
+- 🔄 **Multi-Version**: Test across Node 16, 18, 20, etc. simultaneously
+- ⚡ **Parallel Testing**: Run tests concurrently for speed
+- 📊 **Detailed Reports**: Clear pass/fail results with complete test breakdown
 - 🔐 **Private Packages**: Full support for private npm packages with authentication
-- 📦 **Custom Registries**: Works with private npm registries
+- 📦 **Custom Registries**: Works with private npm registries (npm, GitHub, GitLab, etc.)
 - 💨 **Lightweight**: Minimal dependencies, fast execution
 
 ## Quick Start
@@ -161,6 +186,70 @@ npt test --keep-containers
     ✓ basic-type-generation (1512ms)
     ✓ multiple-env-files-with-parsing -e .env .env.local -p (4871ms)
     ✓ strict-mode-all-required -e .env.example -o ./types/env.d.ts (1307ms)
+
+✅ All tests passed!
+```
+
+### Library Testing (Default)
+
+When testing a library package without AI:
+
+```
+📦 Package: lodash
+   Version: 4.17.21
+   JavaScript utility library
+
+🐳 Node 20
+  ✓ import-default (102ms)
+  ✓ import-named (98ms)
+
+📊 Summary
+──────────────────────────────────────────────────
+  Total: 2 tests
+  Passed: 2
+  Failed: 0
+  Duration: 200ms
+
+📋 Test Details
+──────────────────────────────────────────────────
+
+  📚 Library Tests
+    🎯 Default Tests
+      ✓ import-default (102ms)
+      ✓ import-named (98ms)
+
+✅ All tests passed!
+```
+
+### Library Testing (AI-Powered)
+
+When testing a library package with AI:
+
+```
+📦 Package: axios
+   Version: 1.4.0
+   Promise based HTTP client for the browser and node.js
+
+🐳 Node 20
+  ✓ basic-get-request (245ms)
+  ✓ post-with-data (312ms)
+  ✓ error-handling (198ms)
+
+📊 Summary
+──────────────────────────────────────────────────
+  Total: 3 tests
+  Passed: 3
+  Failed: 0
+  Duration: 755ms
+
+📋 Test Details
+──────────────────────────────────────────────────
+
+  📚 Library Tests
+    🤖 AI-Generated Tests
+      ✓ basic-get-request (245ms)
+      ✓ post-with-data (312ms)
+      ✓ error-handling (198ms)
 
 ✅ All tests passed!
 ```
@@ -407,38 +496,42 @@ npm-package-tester
 
 ## Limitations
 
-- **CLI-Only**: Currently only tests packages with CLI commands (library/module testing coming soon)
-- **Docker Required**: Requires Docker (no Windows native support yet)
+- **Docker Required**: Requires Docker (no Windows native support yet, WSL2 works)
 - **No Interactive Testing**: Can't test interactive prompts automatically
 - **Network-Dependent**: Pulls Docker images on demand
-- **AI Costs**: AI features require API credits (Anthropic, OpenAI, Google, or Groq)
+- **AI Costs**: AI features require API credits (optional, but recommended for best results)
+- **Static Analysis**: Export detection uses regex-based parsing, not full AST analysis
 
 ## Roadmap
 
-### High Priority
-
-- [ ] **Library/Module Export Testing** - Test npm packages exported as libraries (default export, named exports, classes, utilities)
-- [ ] **Export API Analysis** - Detect and validate exported functions, classes, and types
-- [ ] **AI Library Scenarios** - Generate realistic test scenarios for library usage patterns
-- [ ] **Type Validation** - Validate TypeScript type definitions and JSDoc comments
-
-### Completed
+### Completed ✅
 
 - [x] AI-powered test scenario generation
 - [x] Multi-provider AI support (Anthropic, OpenAI, Google, Groq)
+- [x] **Library/Module Export Testing** - Automatically detect and test npm package exports
+- [x] **Export API Analysis** - Analyze exported functions, classes, and constants
+- [x] **AI Library Scenarios** - Generate realistic library usage test patterns
+- [x] CLI export detection and analysis
+
+### High Priority (Next)
+
+- [ ] **Type Validation** - Validate TypeScript type definitions and JSDoc comments
+- [ ] **Enhanced Export Detection** - Use AST parsing for more accurate export analysis
+- [ ] **Custom Library Tests** - Allow users to define custom library test scenarios
+- [ ] **Performance Benchmarking** - Test and report library function performance
 
 ### Future Enhancements
 
 - [ ] Support testing interactive CLIs
 - [ ] Cloud runners (no local Docker needed)
-- [ ] Performance benchmarking
 - [ ] Screenshot/visual testing for TUI apps
-- [ ] Windows native support (WSL2)
+- [ ] Windows native support (WSL2 improvements)
 - [ ] Custom Docker images
-- [ ] CI/CD badges
-- [ ] Historical test tracking
+- [ ] CI/CD badges and GitHub Actions integration
+- [ ] Historical test tracking and trend analysis
 - [ ] Podman support (Docker alternative)
 - [ ] Local execution mode (without Docker)
+- [ ] Snapshot testing for library output
 
 ## Contributing
 
