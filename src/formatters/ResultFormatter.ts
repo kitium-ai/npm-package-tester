@@ -3,7 +3,12 @@
  */
 
 import chalk from 'chalk';
-import { PackageTestSummary, CommandTestResult, ProgressEvent } from '../domain/models/types';
+import {
+  PackageTestSummary,
+  CommandTestResult,
+  LibraryTestResult,
+  ProgressEvent,
+} from '../domain/models/types';
 
 export class ResultFormatter {
   /**
@@ -55,51 +60,94 @@ export class ResultFormatter {
     lines.push(chalk.gray('─'.repeat(50)));
     lines.push('');
 
-    // Group by test type
-    const aiTests = summary.results.filter((r) => r.testType === 'ai-generated');
-    const defaultTests = summary.results.filter((r) => r.testType === 'default');
-    const customTests = summary.results.filter((r) => r.testType === 'custom');
+    // Separate CLI and library tests
+    const cliTests = summary.cliResults || [];
+    const libraryTests = summary.libraryResults || [];
 
-    if (aiTests.length > 0) {
-      lines.push(chalk.bold.cyan('  🤖 AI-Generated Tests'));
-      for (const test of aiTests) {
-        const icon = test.passed ? chalk.green('  ✓') : chalk.red('  ✗');
-        const args = test.args && test.args.length > 0 ? ` ${test.args.join(' ')}` : '';
-        lines.push(
-          `  ${icon} ${test.scenarioName || test.command.name}${args} ${chalk.gray(`(${test.duration}ms)`)}`,
-        );
-        if (!test.passed && test.error) {
-          lines.push(`      ${chalk.red(test.error)}`);
+    // CLI Tests Section
+    if (cliTests.length > 0) {
+      lines.push(chalk.bold.blue('  🔧 CLI Tests'));
+
+      // Group CLI tests by type
+      const cliAiTests = cliTests.filter((r) => r.testType === 'ai-generated');
+      const cliDefaultTests = cliTests.filter((r) => r.testType === 'default');
+      const cliCustomTests = cliTests.filter((r) => r.testType === 'custom');
+
+      if (cliDefaultTests.length > 0) {
+        lines.push(chalk.bold.yellow('    🎯 Default Tests'));
+        for (const test of cliDefaultTests) {
+          const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
+          lines.push(
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
+          );
+          if (!test.passed && test.error) {
+            lines.push(`        ${chalk.red(test.error)}`);
+          }
         }
       }
+
+      if (cliAiTests.length > 0) {
+        lines.push(chalk.bold.cyan('    🤖 AI-Generated Tests'));
+        for (const test of cliAiTests) {
+          const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
+          const args = (test as CommandTestResult).args && (test as CommandTestResult).args!.length > 0
+            ? ` ${(test as CommandTestResult).args!.join(' ')}`
+            : '';
+          lines.push(
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name}${args} ${chalk.gray(`(${test.duration}ms)`)}`,
+          );
+          if (!test.passed && test.error) {
+            lines.push(`        ${chalk.red(test.error)}`);
+          }
+        }
+      }
+
+      if (cliCustomTests.length > 0) {
+        lines.push(chalk.bold.magenta('    🎨 Custom Tests'));
+        for (const test of cliCustomTests) {
+          const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
+          lines.push(
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
+          );
+          if (!test.passed && test.error) {
+            lines.push(`        ${chalk.red(test.error)}`);
+          }
+        }
+      }
+
       lines.push('');
     }
 
-    if (defaultTests.length > 0) {
-      lines.push(chalk.bold.yellow('  🎯 Default Tests'));
-      for (const test of defaultTests) {
-        const icon = test.passed ? chalk.green('  ✓') : chalk.red('  ✗');
-        lines.push(
-          `  ${icon} ${test.scenarioName || test.command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
-        );
-        if (!test.passed && test.error) {
-          lines.push(`      ${chalk.red(test.error)}`);
-        }
-      }
-      lines.push('');
-    }
+    // Library Tests Section
+    if (libraryTests.length > 0) {
+      lines.push(chalk.bold.green('  📚 Library Tests'));
 
-    if (customTests.length > 0) {
-      lines.push(chalk.bold.magenta('  🎨 Custom Tests'));
-      for (const test of customTests) {
-        const icon = test.passed ? chalk.green('  ✓') : chalk.red('  ✗');
-        lines.push(
-          `  ${icon} ${test.scenarioName || test.command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
-        );
-        if (!test.passed && test.error) {
-          lines.push(`      ${chalk.red(test.error)}`);
+      // Group library tests by type
+      const libAiTests = libraryTests.filter((r) => r.testType === 'ai-generated');
+      const libDefaultTests = libraryTests.filter((r) => r.testType === 'library');
+
+      if (libDefaultTests.length > 0) {
+        lines.push(chalk.bold.yellow('    🎯 Default Tests'));
+        for (const test of libDefaultTests) {
+          const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
+          lines.push(`    ${icon} ${test.name} ${chalk.gray(`(${test.duration}ms)`)}`);
+          if (!test.passed && test.error) {
+            lines.push(`        ${chalk.red(test.error)}`);
+          }
         }
       }
+
+      if (libAiTests.length > 0) {
+        lines.push(chalk.bold.cyan('    🤖 AI-Generated Tests'));
+        for (const test of libAiTests) {
+          const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
+          lines.push(`    ${icon} ${test.name} ${chalk.gray(`(${test.duration}ms)`)}`);
+          if (!test.passed && test.error) {
+            lines.push(`        ${chalk.red(test.error)}`);
+          }
+        }
+      }
+
       lines.push('');
     }
 
