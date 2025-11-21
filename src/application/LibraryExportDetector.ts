@@ -109,7 +109,7 @@ export class LibraryExportDetector {
   /**
    * Resolve the main entry point file
    */
-  private resolveEntryPoint(packagePath: string, packageJson: Record<string, any>): string {
+  private resolveEntryPoint(_packagePath: string, packageJson: Record<string, any>): string {
     // Prefer explicit exports field
     if (packageJson.exports) {
       if (typeof packageJson.exports === 'string') {

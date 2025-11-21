@@ -2,7 +2,14 @@
  * AI Provider abstraction for generating test scenarios
  */
 
-import { AIConfig, AIProvider, TestScenario, CLIExample } from '../domain/models/types';
+import {
+  AIConfig,
+  AIProvider,
+  TestScenario,
+  CLIExample,
+  LibraryTestScenario,
+  LibraryExports,
+} from '../domain/models/types';
 
 export interface AIProviderClient {
   generateScenarios(
@@ -13,6 +20,14 @@ export interface AIProviderClient {
     commands: string[],
     examples?: readonly CLIExample[],
   ): Promise<TestScenario[]>;
+
+  generateLibraryScenarios(
+    packageName: string,
+    packageDescription: string,
+    readme: string,
+    libraryExports: LibraryExports,
+    examples?: readonly CLIExample[],
+  ): Promise<LibraryTestScenario[]>;
 }
 
 export class AIProviderFactory {
@@ -103,6 +118,51 @@ class AnthropicProvider implements AIProviderClient {
     return this.parseScenarios(content);
   }
 
+  async generateLibraryScenarios(
+    packageName: string,
+    packageDescription: string,
+    readme: string,
+    libraryExports: LibraryExports,
+    examples?: readonly CLIExample[],
+  ): Promise<LibraryTestScenario[]> {
+    const prompt = this.buildLibraryPrompt(
+      packageName,
+      packageDescription,
+      readme,
+      libraryExports,
+      examples,
+    );
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': this.config.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: this.model,
+        max_tokens: 4096,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Anthropic API error: ${response.statusText} - ${errorBody}`);
+    }
+
+    const data = (await response.json()) as any;
+    const content = data.content[0].text;
+
+    return this.parseLibraryScenarios(content);
+  }
+
   private buildPrompt(
     packageName: string,
     packageDescription: string,
@@ -178,6 +238,130 @@ Return ONLY the JSON array, no additional text.`;
       return Array.isArray(scenarios) ? scenarios : [scenarios];
     } catch (error) {
       throw new Error(`Failed to parse AI response: ${(error as Error).message}`);
+    }
+  }
+
+  private buildLibraryPrompt(
+    packageName: string,
+    packageDescription: string,
+    readme: string,
+    libraryExports: LibraryExports,
+    examples?: readonly CLIExample[],
+  ): string {
+    const functionExports = libraryExports.namedExports.filter(
+      (e) => e.type === 'function' || e.type === 'constant',
+    );
+    const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
+
+    return `You are an expert software testing engineer specializing in JavaScript/Node.js library testing. Your task is to generate comprehensive, realistic test scenarios for the npm library package "${packageName}".
+
+PACKAGE INFORMATION:
+- Name: ${packageName}
+- Description: ${packageDescription}
+- Has Default Export: ${libraryExports.hasDefaultExport}
+- Export Format: ${libraryExports.exportFormat}
+${functionExports.length > 0 ? `- Functions/Constants: ${functionExports.map((e) => `${e.name}${e.signature ? ` ${e.signature}` : ''}`).join(', ')}` : ''}
+${classExports.length > 0 ? `- Classes: ${classExports.map((e) => e.name).join(', ')}` : ''}
+${libraryExports.typeDefinitions ? '- TypeScript types: Available' : ''}
+
+DOCUMENTATION:
+\`\`\`
+${readme.substring(0, 2500)}
+\`\`\`
+
+${examples && examples.length > 0 ? `USAGE EXAMPLES:\n${examples.map((e) => `- ${e.description}: ${e.command}`).join('\n')}\n` : ''}
+
+REQUIREMENTS:
+Generate 4-6 diverse, realistic test scenarios covering:
+
+1. **Core Functionality** (1-2 scenarios):
+   - Test main/default exports with typical use cases
+   - Include realistic input data and verify output
+
+2. **Error Handling** (1 scenario):
+   - Test error handling with invalid inputs
+   - Show expect error handling
+
+3. **Advanced/Edge Cases** (1-2 scenarios):
+   - Test boundary conditions, empty inputs, extreme values
+   - Test special cases mentioned in documentation
+   - Test with various data types
+
+4. **Async/Promises** (optional, if applicable):
+   - If library has async functions, test async/await patterns
+   - Include promise resolution with console.log
+
+5. **Integration** (optional, if multiple exports):
+   - Test using multiple exports together
+   - Test chaining or combined usage patterns
+
+SCENARIO FORMAT:
+Each scenario MUST be valid JSON with:
+- name: Descriptive name (lowercase, hyphens)
+- description: What this tests (1-2 sentences)
+- importStatement: Exact import code
+- testCode: Complete, executable JavaScript that:
+  * Uses importStatement exactly
+  * Logs all results with console.log()
+  * For async: wrap in (async () => { ... })()
+  * For errors: use try-catch and log errors
+  * Must be runnable as-is without modifications
+- expectedOutput: String or regex pattern expected in stdout (null for error tests)
+- expectError: true if code should throw/error
+
+CRITICAL RULES:
+- All code must be valid JavaScript runnable in Node.js
+- For async code, wrap in IIFE: (async () => { ... })()
+- Include at least one error handling scenario
+- Make scenarios realistic, not trivial
+- Don't use external dependencies beyond ${packageName}
+
+OUTPUT FORMAT:
+Return ONLY valid JSON with "scenarios" array:
+\`\`\`json
+{
+  "scenarios": [
+    {
+      "name": "basic-usage",
+      "description": "Test basic usage of main export",
+      "importStatement": "const lib = require('${packageName}')",
+      "testCode": "const result = lib.transform('test'); console.log(JSON.stringify(result));",
+      "expectedOutput": ".*",
+      "expectError": false
+    },
+    {
+      "name": "error-handling",
+      "description": "Test error handling with invalid input",
+      "importStatement": "const lib = require('${packageName}')",
+      "testCode": "try { lib.process(null); } catch (e) { console.log('Error: ' + e.message); }",
+      "expectedOutput": null,
+      "expectError": false
+    }
+  ]
+}
+\`\`\`
+
+Generate 4-6 comprehensive test scenarios now:`;
+  }
+
+  private parseLibraryScenarios(content: string): LibraryTestScenario[] {
+    // Extract JSON from markdown code blocks if present
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    const jsonStr = jsonMatch ? jsonMatch[1] : content;
+
+    try {
+      const data = JSON.parse(jsonStr);
+      const scenarios = Array.isArray(data) ? data : data.scenarios || [data];
+      return scenarios.map((s: any) => ({
+        name: s.name,
+        description: s.description,
+        importStatement: s.importStatement,
+        testCode: s.testCode,
+        expectedOutput: s.expectedOutput,
+        expectError: s.expectError === true,
+      }));
+    } catch (error) {
+      throw new Error(`Failed to parse library scenarios: ${(error as Error).message}`);
     }
   }
 }
@@ -268,6 +452,91 @@ Return a JSON object with a "scenarios" array containing 2-4 test scenarios.`;
   private parseScenarios(content: string): TestScenario[] {
     const data = JSON.parse(content);
     return data.scenarios || data;
+  }
+
+  async generateLibraryScenarios(
+    packageName: string,
+    packageDescription: string,
+    readme: string,
+    libraryExports: LibraryExports,
+    examples?: readonly CLIExample[],
+  ): Promise<LibraryTestScenario[]> {
+    const prompt = this.buildLibraryPrompt(
+      packageName,
+      packageDescription,
+      readme,
+      libraryExports,
+      examples,
+    );
+
+    const baseUrl = this.config.baseUrl || 'https://api.openai.com/v1';
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`OpenAI API error: ${response.statusText} - ${errorBody}`);
+    }
+
+    const data = (await response.json()) as any;
+    const content = data.choices[0].message.content;
+
+    return this.parseLibraryScenarios(content);
+  }
+
+  private buildLibraryPrompt(
+    packageName: string,
+    packageDescription: string,
+    readme: string,
+    libraryExports: LibraryExports,
+    _examples?: readonly CLIExample[],
+  ): string {
+    const functionExports = libraryExports.namedExports.filter(
+      (e) => e.type === 'function' || e.type === 'constant',
+    );
+    const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
+
+    return `You are an expert software testing engineer specializing in JavaScript/Node.js library testing. Generate comprehensive test scenarios for "${packageName}".
+
+PACKAGE: ${packageName}
+DESCRIPTION: ${packageDescription}
+EXPORTS: Default=${libraryExports.hasDefaultExport}, Format=${libraryExports.exportFormat}
+${functionExports.length > 0 ? `Functions: ${functionExports.map((e) => e.name).join(', ')}` : ''}
+${classExports.length > 0 ? `Classes: ${classExports.map((e) => e.name).join(', ')}` : ''}
+
+README: ${readme.substring(0, 2000)}
+
+Generate 4-6 test scenarios (core functionality, error handling, edge cases, async if applicable, integration).
+
+Return JSON with "scenarios" array. Each scenario has: name, description, importStatement, testCode (executable Node.js), expectedOutput, expectError.`;
+  }
+
+  private parseLibraryScenarios(content: string): LibraryTestScenario[] {
+    const data = JSON.parse(content);
+    const scenarios = Array.isArray(data) ? data : data.scenarios || [data];
+    return scenarios.map((s: any) => ({
+      name: s.name,
+      description: s.description,
+      importStatement: s.importStatement,
+      testCode: s.testCode,
+      expectedOutput: s.expectedOutput,
+      expectError: s.expectError === true,
+    }));
   }
 }
 
@@ -401,6 +670,96 @@ Return ONLY the JSON array, no additional text.`;
     const scenarios = JSON.parse(jsonStr);
     return Array.isArray(scenarios) ? scenarios : [scenarios];
   }
+
+  async generateLibraryScenarios(
+    packageName: string,
+    packageDescription: string,
+    readme: string,
+    libraryExports: LibraryExports,
+    examples?: readonly CLIExample[],
+  ): Promise<LibraryTestScenario[]> {
+    const prompt = this.buildLibraryPrompt(
+      packageName,
+      packageDescription,
+      readme,
+      libraryExports,
+      examples,
+    );
+
+    const baseUrl =
+      this.config.baseUrl || 'https://generativelanguage.googleapis.com/v1beta/models';
+    const response = await fetch(
+      `${baseUrl}/${this.model}:generateContent?key=${this.config.apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Google API error: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as any;
+    const content = data.candidates[0].content.parts[0].text;
+
+    return this.parseLibraryScenarios(content);
+  }
+
+  private buildLibraryPrompt(
+    packageName: string,
+    packageDescription: string,
+    readme: string,
+    libraryExports: LibraryExports,
+    _examples?: readonly CLIExample[],
+  ): string {
+    const functionExports = libraryExports.namedExports.filter(
+      (e) => e.type === 'function' || e.type === 'constant',
+    );
+    const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
+
+    return `You are an expert JavaScript library testing engineer. Generate 4-6 comprehensive test scenarios for "${packageName}".
+
+Package: ${packageName}
+Description: ${packageDescription}
+Has Default Export: ${libraryExports.hasDefaultExport}
+Export Format: ${libraryExports.exportFormat}
+${functionExports.length > 0 ? `Functions: ${functionExports.map((e) => e.name).join(', ')}` : ''}
+${classExports.length > 0 ? `Classes: ${classExports.map((e) => e.name).join(', ')}` : ''}
+
+Documentation: ${readme.substring(0, 2000)}
+
+Return ONLY JSON with "scenarios" array. Each scenario: name, description, importStatement, testCode (executable Node.js code), expectedOutput, expectError.
+Include core functionality, error handling, edge cases, and async patterns if applicable.`;
+  }
+
+  private parseLibraryScenarios(content: string): LibraryTestScenario[] {
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    const jsonStr = jsonMatch ? jsonMatch[1] : content;
+    const data = JSON.parse(jsonStr);
+    const scenarios = Array.isArray(data) ? data : data.scenarios || [data];
+    return scenarios.map((s: any) => ({
+      name: s.name,
+      description: s.description,
+      importStatement: s.importStatement,
+      testCode: s.testCode,
+      expectedOutput: s.expectedOutput,
+      expectError: s.expectError === true,
+    }));
+  }
 }
 
 class GroqProvider implements AIProviderClient {
@@ -527,5 +886,90 @@ Return ONLY the JSON array, no additional text.`;
     const jsonStr = jsonMatch ? jsonMatch[1] : content;
     const scenarios = JSON.parse(jsonStr);
     return Array.isArray(scenarios) ? scenarios : [scenarios];
+  }
+
+  async generateLibraryScenarios(
+    packageName: string,
+    packageDescription: string,
+    readme: string,
+    libraryExports: LibraryExports,
+    examples?: readonly CLIExample[],
+  ): Promise<LibraryTestScenario[]> {
+    const prompt = this.buildLibraryPrompt(
+      packageName,
+      packageDescription,
+      readme,
+      libraryExports,
+      examples,
+    );
+
+    const baseUrl = this.config.baseUrl || 'https://api.groq.com/openai/v1';
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq API error: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as any;
+    const content = data.choices[0].message.content;
+
+    return this.parseLibraryScenarios(content);
+  }
+
+  private buildLibraryPrompt(
+    packageName: string,
+    packageDescription: string,
+    readme: string,
+    libraryExports: LibraryExports,
+    _examples?: readonly CLIExample[],
+  ): string {
+    const functionExports = libraryExports.namedExports.filter(
+      (e) => e.type === 'function' || e.type === 'constant',
+    );
+    const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
+
+    return `Generate 4-6 comprehensive test scenarios for "${packageName}" library.
+
+Package: ${packageName}
+Description: ${packageDescription}
+Has Default Export: ${libraryExports.hasDefaultExport}
+Export Format: ${libraryExports.exportFormat}
+${functionExports.length > 0 ? `Functions: ${functionExports.map((e) => e.name).join(', ')}` : ''}
+${classExports.length > 0 ? `Classes: ${classExports.map((e) => e.name).join(', ')}` : ''}
+
+Documentation: ${readme.substring(0, 2000)}
+
+Scenarios should include: core functionality, error handling, edge cases, async patterns if applicable.
+Return JSON array with name, description, importStatement, testCode (runnable Node.js), expectedOutput, expectError.`;
+  }
+
+  private parseLibraryScenarios(content: string): LibraryTestScenario[] {
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    const jsonStr = jsonMatch ? jsonMatch[1] : content;
+    const data = JSON.parse(jsonStr);
+    const scenarios = Array.isArray(data) ? data : data.scenarios || [data];
+    return scenarios.map((s: any) => ({
+      name: s.name,
+      description: s.description,
+      importStatement: s.importStatement,
+      testCode: s.testCode,
+      expectedOutput: s.expectedOutput,
+      expectError: s.expectError === true,
+    }));
   }
 }

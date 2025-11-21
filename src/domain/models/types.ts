@@ -391,6 +391,38 @@ export interface CommandTestResult {
 }
 
 /**
+ * Type validation result for library exports
+ */
+export interface TypeValidationReport {
+  /** Whether all validations passed */
+  readonly valid: boolean;
+  /** Number of typed exports */
+  readonly typedExports: number;
+  /** Number of untyped exports */
+  readonly untypedExports: number;
+  /** Number of exports without documentation */
+  readonly undocumentedExports: number;
+  /** Documentation coverage percentage (0-100) */
+  readonly documentationCoverage: number;
+  /** Validation issues */
+  readonly issues: ValidationIssue[];
+}
+
+/**
+ * Single validation issue
+ */
+export interface ValidationIssue {
+  /** Issue type */
+  readonly type: 'missing-type' | 'missing-export' | 'untyped' | 'undocumented' | 'deprecated';
+  /** Export name */
+  readonly exportName: string;
+  /** Issue description */
+  readonly message: string;
+  /** Severity level */
+  readonly severity: 'error' | 'warning' | 'info';
+}
+
+/**
  * Test summary for entire package
  */
 export interface PackageTestSummary {
@@ -412,6 +444,8 @@ export interface PackageTestSummary {
   readonly cliResults?: readonly CommandTestResult[];
   /** Library test results (if any) */
   readonly libraryResults?: readonly LibraryTestResult[];
+  /** Type validation results (if library package) */
+  readonly typeValidation?: TypeValidationReport;
 }
 
 /**

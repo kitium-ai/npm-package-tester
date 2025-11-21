@@ -4,7 +4,6 @@
  */
 
 import * as fs from 'fs';
-import * as path from 'path';
 import * as parser from '@babel/parser';
 import traverse, { NodePath } from '@babel/traverse';
 import * as t from '@babel/types';
@@ -67,7 +66,6 @@ export class ASTExportParser {
   private parseContent(content: string, filePath: string): t.File | null {
     try {
       const isTypeScript = filePath.endsWith('.ts') || filePath.endsWith('.tsx');
-      const isJSX = filePath.endsWith('.jsx') || filePath.endsWith('.tsx');
 
       return parser.parse(content, {
         sourceType: 'module',
@@ -272,7 +270,7 @@ export class ASTExportParser {
         properties.push({
           name,
           type: this.extractTypeFromAnnotation(member.typeAnnotation),
-          optional: member.optional,
+          optional: member.optional ?? false,
         });
       }
     }

@@ -14,6 +14,8 @@ import {
   PackageManager,
   CLICommand,
   LibraryTestScenario,
+  TypeValidationReport,
+  ValidationIssue,
 } from '../domain/models/types';
 import { DockerManager } from './DockerManager';
 import { PackageAnalyzer } from './PackageAnalyzer';
@@ -21,6 +23,7 @@ import { ScenarioRunner } from './ScenarioRunner';
 import { ScenarioGenerator } from '../ai/ScenarioGenerator';
 import { LibraryScenarioRunner } from './LibraryScenarioRunner';
 import { LibraryScenarioGenerator } from '../ai/LibraryScenarioGenerator';
+import { JSDocAnalyzer } from './JSDocAnalyzer';
 
 export class TestRunner {
   private readonly dockerManager: DockerManager;
@@ -29,6 +32,7 @@ export class TestRunner {
   private readonly scenarioGenerator: ScenarioGenerator;
   private readonly libraryScenarioRunner: LibraryScenarioRunner;
   private readonly libraryScenarioGenerator: LibraryScenarioGenerator;
+  private readonly jsDocAnalyzer: JSDocAnalyzer;
 
   constructor() {
     this.dockerManager = new DockerManager();
@@ -37,6 +41,7 @@ export class TestRunner {
     this.scenarioGenerator = new ScenarioGenerator(this.dockerManager);
     this.libraryScenarioRunner = new LibraryScenarioRunner(this.dockerManager);
     this.libraryScenarioGenerator = new LibraryScenarioGenerator();
+    this.jsDocAnalyzer = new JSDocAnalyzer();
   }
 
   /**
@@ -76,6 +81,17 @@ export class TestRunner {
       const { cliResults, libraryResults } = await this.runTests(packageInfo, testConfig, onProgress);
       const allResults = [...cliResults, ...libraryResults];
 
+      // Validate types if library package
+      this.emitProgress(onProgress, {
+        stage: TestStage.TESTING_COMMAND,
+        message: packageInfo.type?.isLibrary ? '🔍 Validating types and documentation...' : '',
+      });
+
+      let typeValidation: TypeValidationReport | undefined;
+      if (packageInfo.type?.isLibrary && packageInfo.exports) {
+        typeValidation = this.performTypeValidation(packageInfo);
+      }
+
       const duration = Date.now() - startTime;
 
       // Create summary
@@ -84,6 +100,7 @@ export class TestRunner {
         results: allResults,
         cliResults: cliResults.length > 0 ? cliResults : undefined,
         libraryResults: libraryResults.length > 0 ? libraryResults : undefined,
+        typeValidation,
         total: allResults.length,
         passed: allResults.filter((r) => r.passed).length,
         failed: allResults.filter((r) => !r.passed).length,
@@ -494,5 +511,64 @@ export class TestRunner {
     if (callback) {
       callback(event);
     }
+  }
+
+  /**
+   * Perform type validation and documentation analysis
+   */
+  private performTypeValidation(packageInfo: PackageInfo): TypeValidationReport {
+    if (!packageInfo.exports) {
+      return {
+        valid: true,
+        typedExports: 0,
+        untypedExports: 0,
+        undocumentedExports: 0,
+        documentationCoverage: 0,
+        issues: [],
+      };
+    }
+
+    // Analyze JSDoc documentation
+    const jsDocAnalysis = this.jsDocAnalyzer.analyzeExports(packageInfo.exports);
+
+    // Build issues list
+    const issues: ValidationIssue[] = [];
+
+    // Check documentation coverage
+    for (const exportAnalysis of jsDocAnalysis.exports) {
+      if (!exportAnalysis.hasJSDoc && !exportAnalysis.hasDescription) {
+        issues.push({
+          type: 'undocumented',
+          exportName: exportAnalysis.name,
+          message: `Export "${exportAnalysis.name}" has no documentation`,
+          severity: 'info',
+        });
+      }
+
+      if (exportAnalysis.issues.length > 0) {
+        for (const issue of exportAnalysis.issues) {
+          issues.push({
+            type: issue.severity === 'error' ? 'untyped' : 'undocumented',
+            exportName: exportAnalysis.name,
+            message: issue.message,
+            severity: issue.severity as any,
+          });
+        }
+      }
+    }
+
+    // Count untyped exports (exports without JSDoc or type info)
+    const untypedCount = packageInfo.exports.namedExports.filter(
+      (e) => !e.jsDoc && !e.signature && !e.description,
+    ).length;
+
+    return {
+      valid: issues.filter((i) => i.severity === 'error').length === 0,
+      typedExports: packageInfo.exports.namedExports.length - untypedCount,
+      untypedExports: untypedCount,
+      undocumentedExports: jsDocAnalysis.summary.undocumented,
+      documentationCoverage: jsDocAnalysis.summary.averageCompleteness,
+      issues,
+    };
   }
 }
