@@ -1,10 +1,6 @@
 {
   "parser": "@typescript-eslint/parser",
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended",
-    "prettier"
-  ],
+  "extends": ["@kitiumai/lint/node"],
   "plugins": ["@typescript-eslint", "prettier"],
   "parserOptions": {
     "ecmaVersion": 2020,
@@ -27,7 +23,12 @@
     "max-lines-per-function": ["warn", { "max": 200, "skipBlankLines": true, "skipComments": true }]
   },
   "env": {
-    "node": true,
-    "jest": true
+    "node": true
+  },
+  "globals": {
+    "describe": "readonly",
+    "it": "readonly",
+    "expect": "readonly",
+    "vi": "readonly"
   }
 }

@@ -8,7 +8,7 @@ import {
   CommandTestResult,
   ProgressEvent,
   TypeValidationReport,
-} from '../domain/models/types';
+} from 'domain/models/types';
 
 export class ResultFormatter {
   /**
@@ -34,9 +34,7 @@ export class ResultFormatter {
     lines.push('');
 
     // Group results by Node version (only CLI tests)
-    const cliResults = summary.results.filter(
-      (r): r is CommandTestResult => 'command' in r,
-    );
+    const cliResults = summary.results.filter((r): r is CommandTestResult => 'command' in r);
     const byNodeVersion = this.groupByNodeVersion(cliResults);
 
     for (const [nodeVersion, results] of Object.entries(byNodeVersion)) {
@@ -64,8 +62,11 @@ export class ResultFormatter {
     lines.push('');
 
     // Separate CLI and library tests
-    const cliTests = summary.cliResults || [];
-    const libraryTests = summary.libraryResults || [];
+    const inferredCliResults = summary.results.filter(
+      (result): result is CommandTestResult => 'command' in result
+    );
+    const cliTests = summary.cliResults ?? inferredCliResults;
+    const libraryTests = summary.libraryResults ?? [];
 
     // CLI Tests Section
     if (cliTests.length > 0) {
@@ -81,7 +82,7 @@ export class ResultFormatter {
         for (const test of cliDefaultTests) {
           const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
           lines.push(
-            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`
           );
           if (!test.passed && test.error) {
             lines.push(`        ${chalk.red(test.error)}`);
@@ -93,11 +94,12 @@ export class ResultFormatter {
         lines.push(chalk.bold.cyan('    🤖 AI-Generated Tests'));
         for (const test of cliAiTests) {
           const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
-          const args = (test as CommandTestResult).args && (test as CommandTestResult).args!.length > 0
-            ? ` ${(test as CommandTestResult).args!.join(' ')}`
-            : '';
+          const args =
+            (test as CommandTestResult).args && (test as CommandTestResult).args!.length > 0
+              ? ` ${(test as CommandTestResult).args!.join(' ')}`
+              : '';
           lines.push(
-            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name}${args} ${chalk.gray(`(${test.duration}ms)`)}`,
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name}${args} ${chalk.gray(`(${test.duration}ms)`)}`
           );
           if (!test.passed && test.error) {
             lines.push(`        ${chalk.red(test.error)}`);
@@ -110,7 +112,7 @@ export class ResultFormatter {
         for (const test of cliCustomTests) {
           const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
           lines.push(
-            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`
           );
           if (!test.passed && test.error) {
             lines.push(`        ${chalk.red(test.error)}`);
@@ -214,7 +216,7 @@ export class ResultFormatter {
    * Group results by Node version
    */
   private groupByNodeVersion(
-    results: readonly CommandTestResult[],
+    results: readonly CommandTestResult[]
   ): Record<string, CommandTestResult[]> {
     const grouped: Record<string, CommandTestResult[]> = {};
 
@@ -264,14 +266,18 @@ export class ResultFormatter {
 
     // Overall validation status
     const statusIcon = validation.valid ? chalk.green('✓') : chalk.yellow('⚠️');
-    lines.push(`${statusIcon} ${validation.valid ? 'Type definitions valid' : 'Some type issues found'}`);
+    lines.push(
+      `${statusIcon} ${validation.valid ? 'Type definitions valid' : 'Some type issues found'}`
+    );
     lines.push('');
 
     // Export statistics
     lines.push(`  Typed Exports: ${chalk.green(validation.typedExports)}`);
     lines.push(`  Untyped Exports: ${chalk.yellow(validation.untypedExports)}`);
     lines.push(`  Undocumented Exports: ${chalk.yellow(validation.undocumentedExports)}`);
-    lines.push(`  Documentation Coverage: ${this.getCoverageBar(validation.documentationCoverage)}`);
+    lines.push(
+      `  Documentation Coverage: ${this.getCoverageBar(validation.documentationCoverage)}`
+    );
     lines.push('');
 
     // Issues summary
@@ -325,8 +331,7 @@ export class ResultFormatter {
     const empty = 20 - bars;
     const bar = '█'.repeat(bars) + '░'.repeat(empty);
 
-    const color =
-      percentage >= 75 ? chalk.green : percentage >= 50 ? chalk.yellow : chalk.red;
+    const color = percentage >= 75 ? chalk.green : percentage >= 50 ? chalk.yellow : chalk.red;
 
     return `${color(bar)} ${percentage}%`;
   }

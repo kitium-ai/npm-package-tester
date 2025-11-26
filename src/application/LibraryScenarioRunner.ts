@@ -2,11 +2,7 @@
  * Executes library test scenarios in Docker containers
  */
 
-import {
-  LibraryTestScenario,
-  LibraryTestResult,
-  TestSetup,
-} from '../domain/models/types';
+import { LibraryTestScenario, LibraryTestResult, TestSetup } from 'domain/models/types';
 import { DockerManager } from './DockerManager';
 
 export class LibraryScenarioRunner {
@@ -18,7 +14,7 @@ export class LibraryScenarioRunner {
   async runScenario(
     containerId: string,
     scenario: LibraryTestScenario,
-    nodeVersion: string,
+    nodeVersion: string
   ): Promise<LibraryTestResult> {
     const startTime = Date.now();
 
@@ -72,10 +68,7 @@ export class LibraryScenarioRunner {
   /**
    * Setup test environment (create files, directories, install deps)
    */
-  private async setupTestEnvironment(
-    containerId: string,
-    setup: TestSetup,
-  ): Promise<void> {
+  private async setupTestEnvironment(containerId: string, setup: TestSetup): Promise<void> {
     // Create directories
     if (setup.directories) {
       for (const dir of setup.directories) {
@@ -145,11 +138,7 @@ try {
   /**
    * Validate test output against expectations
    */
-  private validateOutput(
-    stdout: string,
-    stderr: string,
-    scenario: LibraryTestScenario,
-  ): boolean {
+  private validateOutput(stdout: string, stderr: string, scenario: LibraryTestScenario): boolean {
     // If we expect an error
     if (scenario.expectError) {
       return stderr.length > 0;
@@ -194,7 +183,7 @@ try {
    */
   private getErrorMessage(
     result: { stdout: string; stderr: string; exitCode: number },
-    scenario: LibraryTestScenario,
+    scenario: LibraryTestScenario
   ): string {
     if (result.stderr) {
       return result.stderr.split('\n')[0];

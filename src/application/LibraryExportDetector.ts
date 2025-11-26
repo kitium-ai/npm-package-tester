@@ -4,13 +4,17 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import {
-  LibraryExports,
-  LibraryExport,
-  LibraryExportType,
-  PackageType,
-} from '../domain/models/types';
+import { LibraryExports, LibraryExport, LibraryExportType, PackageType } from 'domain/models/types';
 import { ASTExportParser } from './ASTExportParser';
+
+type PackageJson = Record<string, unknown> & {
+  bin?: Record<string, unknown> | string;
+  main?: string;
+  module?: string;
+  exports?: unknown;
+  types?: string;
+  typings?: string;
+};
 
 export class LibraryExportDetector {
   private readonly astParser: ASTExportParser;
@@ -39,13 +43,16 @@ export class LibraryExportDetector {
         };
       }
 
-      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8')) as PackageJson;
 
       // Determine if it's a CLI package
-      const isCLI = !!(packageJson.bin && Object.keys(packageJson.bin || {}).length > 0);
+      const isCLI =
+        typeof packageJson.bin === 'string'
+          ? packageJson.bin.length > 0
+          : !!(packageJson.bin && Object.keys(packageJson.bin).length > 0);
 
       // Determine if it's a library package (has main or exports field)
-      const isLibrary = !!(packageJson.main || packageJson.exports || packageJson.module);
+      const isLibrary = Boolean(packageJson.main || packageJson.exports || packageJson.module);
 
       if (!isLibrary) {
         return {
@@ -68,7 +75,7 @@ export class LibraryExportDetector {
           hasNoExports: false,
         },
       };
-    } catch (error) {
+    } catch {
       return {
         type: {
           isCLI: false,
@@ -84,7 +91,7 @@ export class LibraryExportDetector {
    */
   private async analyzeExports(
     packagePath: string,
-    packageJson: Record<string, any>,
+    packageJson: PackageJson
   ): Promise<LibraryExports> {
     const entryPoint = this.resolveEntryPoint(packagePath, packageJson);
     const exportFormat = this.detectExportFormat(packageJson);
@@ -109,30 +116,44 @@ export class LibraryExportDetector {
   /**
    * Resolve the main entry point file
    */
-  private resolveEntryPoint(_packagePath: string, packageJson: Record<string, any>): string {
+  private resolveEntryPoint(_packagePath: string, packageJson: PackageJson): string {
     // Prefer explicit exports field
     if (packageJson.exports) {
       if (typeof packageJson.exports === 'string') {
         return packageJson.exports;
-      } else if (packageJson.exports['.']) {
-        const exportsObj = packageJson.exports['.'];
+      } else if (
+        typeof packageJson.exports === 'object' &&
+        packageJson.exports !== null &&
+        '.' in packageJson.exports
+      ) {
+        const exportsObj = (packageJson.exports as Record<string, unknown>)['.'];
         if (typeof exportsObj === 'string') {
           return exportsObj;
-        } else if (exportsObj.import) {
-          return exportsObj.import;
-        } else if (exportsObj.require) {
-          return exportsObj.require;
+        }
+
+        if (
+          exportsObj &&
+          typeof exportsObj === 'object' &&
+          ('import' in exportsObj || 'require' in exportsObj)
+        ) {
+          const record = exportsObj as Record<string, string>;
+          if (record.import) {
+            return record.import;
+          }
+          if (record.require) {
+            return record.require;
+          }
         }
       }
     }
 
     // Fall back to module field (ESM)
-    if (packageJson.module) {
+    if (typeof packageJson.module === 'string') {
       return packageJson.module;
     }
 
     // Fall back to main field (CommonJS)
-    if (packageJson.main) {
+    if (typeof packageJson.main === 'string') {
       return packageJson.main;
     }
 
@@ -143,7 +164,7 @@ export class LibraryExportDetector {
   /**
    * Detect export format (CommonJS, ESM, or hybrid)
    */
-  private detectExportFormat(packageJson: Record<string, any>): 'commonjs' | 'esm' | 'hybrid' {
+  private detectExportFormat(packageJson: PackageJson): 'commonjs' | 'esm' | 'hybrid' {
     const hasExports = packageJson.exports !== undefined;
     const hasModule = packageJson.module !== undefined;
     const hasMain = packageJson.main !== undefined;
@@ -152,7 +173,8 @@ export class LibraryExportDetector {
     if (
       hasExports &&
       typeof packageJson.exports === 'object' &&
-      (packageJson.exports.import || packageJson.exports.require)
+      packageJson.exports !== null &&
+      ('import' in packageJson.exports || 'require' in packageJson.exports)
     ) {
       return 'hybrid';
     }
@@ -174,19 +196,19 @@ export class LibraryExportDetector {
   /**
    * Resolve TypeScript type definitions path
    */
-  private resolveTypesPath(packagePath: string, packageJson: Record<string, any>): string | undefined {
+  private resolveTypesPath(packagePath: string, packageJson: PackageJson): string | undefined {
     // Check types field
-    if (packageJson.types) {
+    if (typeof packageJson.types === 'string') {
       return path.join(packagePath, packageJson.types);
     }
 
     // Check typings field (legacy)
-    if (packageJson.typings) {
+    if (typeof packageJson.typings === 'string') {
       return path.join(packagePath, packageJson.typings);
     }
 
     // Check if d.ts file exists next to main entry
-    if (packageJson.main) {
+    if (typeof packageJson.main === 'string') {
       const mainPath = path.join(packagePath, packageJson.main);
       const dtsPath = mainPath.replace(/\.(js|ts)$/, '.d.ts');
       if (fs.existsSync(dtsPath)) {
@@ -200,7 +222,10 @@ export class LibraryExportDetector {
   /**
    * Extract named exports from entry point
    */
-  private async extractNamedExports(packagePath: string, entryPoint: string): Promise<LibraryExport[]> {
+  private async extractNamedExports(
+    packagePath: string,
+    entryPoint: string
+  ): Promise<LibraryExport[]> {
     const exports: LibraryExport[] = [];
 
     try {
@@ -224,7 +249,7 @@ export class LibraryExportDetector {
 
       // Extract CommonJS: module.exports = { ... }
       const commonjsMatch = content.match(
-        /module\.exports\s*=\s*\{([^}]*)\}|\bexports\.(\w+)\s*=/g,
+        /module\.exports\s*=\s*\{([^}]*)\}|\bexports\.(\w+)\s*=/g
       );
       if (commonjsMatch) {
         commonjsMatch.forEach((match) => {
@@ -279,7 +304,7 @@ export class LibraryExportDetector {
       }
 
       return exports;
-    } catch (error) {
+    } catch {
       return exports;
     }
   }
@@ -308,7 +333,7 @@ export class LibraryExportDetector {
       }
 
       return false;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -335,8 +360,6 @@ export class LibraryExportDetector {
       parts.push('TypeScript types');
     }
 
-    return parts.length > 0
-      ? parts.join(' • ')
-      : 'No exports detected';
+    return parts.length > 0 ? parts.join(' • ') : 'No exports detected';
   }
 }

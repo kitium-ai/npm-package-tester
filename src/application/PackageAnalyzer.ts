@@ -4,7 +4,9 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import execa from 'execa';
+import { execa } from 'execa';
+import type { Dictionary, Optional } from '@kitiumai/types';
+import { isArray, isNil, isObject, isString } from '@kitiumai/utils-ts';
 import {
   PackageInfo,
   CLICommand,
@@ -12,7 +14,7 @@ import {
   CLIExample,
   LibraryExports,
   PackageType,
-} from '../domain/models/types';
+} from 'domain/models/types';
 import { LibraryExportDetector } from './LibraryExportDetector';
 
 export class PackageAnalyzer {
@@ -41,7 +43,7 @@ export class PackageAnalyzer {
   private async analyzeLocalPackage(packagePath: string): Promise<PackageInfo> {
     const packageJsonPath = path.join(packagePath, 'package.json');
     const content = await fs.readFile(packageJsonPath, 'utf-8');
-    const packageJson = JSON.parse(content) as Record<string, unknown>;
+    const packageJson = JSON.parse(content) as Dictionary<unknown>;
 
     // Detect library exports for local packages
     const { exports, type } = await this.libraryDetector.detectLibraryExports(packagePath);
@@ -55,15 +57,23 @@ export class PackageAnalyzer {
   private async analyzeNpmPackage(packageName: string): Promise<PackageInfo> {
     try {
       const { stdout } = await execa('npm', ['view', `${packageName}@latest`, '--json']);
-      const packageJson = JSON.parse(stdout) as Record<string, unknown>;
+      const packageJson = JSON.parse(stdout) as Dictionary<unknown>;
 
       // For npm packages, we can't detect library exports from registry
       // (would need to download and inspect files)
       // So we infer package type from package.json metadata
       const type: PackageType = {
-        isCLI: !!(packageJson.bin && Object.keys(packageJson.bin as Record<string, unknown> || {}).length > 0),
+        isCLI: !!(
+          packageJson.bin &&
+          Object.keys((packageJson.bin as Record<string, unknown>) || {}).length > 0
+        ),
         isLibrary: !!(packageJson.main || packageJson.exports || packageJson.module),
-        hasNoExports: !(packageJson.bin || packageJson.main || packageJson.exports || packageJson.module),
+        hasNoExports: !(
+          packageJson.bin ||
+          packageJson.main ||
+          packageJson.exports ||
+          packageJson.module
+        ),
       };
 
       return this.extractPackageInfo(packageJson, undefined, type);
@@ -76,16 +86,22 @@ export class PackageAnalyzer {
    * Extract package information from package.json
    */
   private extractPackageInfo(
-    packageJson: Record<string, unknown>,
+    packageJson: Dictionary<unknown>,
     exports?: LibraryExports,
-    type?: PackageType,
+    type?: PackageType
   ): PackageInfo {
     const name = packageJson.name as string;
     const version = packageJson.version as string;
-    const description = packageJson.description as string | undefined;
-    const dependencies = (packageJson.dependencies as Record<string, string>) || {};
-    const peerDependencies = packageJson.peerDependencies as Record<string, string> | undefined;
-    const engines = packageJson.engines as Record<string, string> | undefined;
+    const description = packageJson.description as Optional<string>;
+    const dependencies = isObject(packageJson.dependencies)
+      ? (packageJson.dependencies as Dictionary<string>)
+      : {};
+    const peerDependencies = isObject(packageJson.peerDependencies)
+      ? (packageJson.peerDependencies as Dictionary<string>)
+      : undefined;
+    const engines = isObject(packageJson.engines)
+      ? (packageJson.engines as Dictionary<string>)
+      : undefined;
 
     const commands = this.extractCommands(packageJson);
     const examples = this.extractExamples(packageJson);
@@ -94,7 +110,10 @@ export class PackageAnalyzer {
     const packageType: PackageType = type || {
       isCLI: commands.length > 0,
       isLibrary: !!exports || !!(packageJson.main || packageJson.exports || packageJson.module),
-      hasNoExports: commands.length === 0 && !exports && !(packageJson.main || packageJson.exports || packageJson.module),
+      hasNoExports:
+        commands.length === 0 &&
+        !exports &&
+        !(packageJson.main || packageJson.exports || packageJson.module),
     };
 
     return {
@@ -114,15 +133,15 @@ export class PackageAnalyzer {
   /**
    * Extract CLI commands from bin field
    */
-  private extractCommands(packageJson: Record<string, unknown>): CLICommand[] {
+  private extractCommands(packageJson: Dictionary<unknown>): CLICommand[] {
     const bin = packageJson.bin;
     const commands: CLICommand[] = [];
 
-    if (!bin) {
+    if (isNil(bin)) {
       return commands;
     }
 
-    if (typeof bin === 'string') {
+    if (isString(bin)) {
       // Single command (package name is command name)
       const name = packageJson.name as string;
       commands.push({
@@ -130,9 +149,9 @@ export class PackageAnalyzer {
         path: bin,
         type: CommandType.PRIMARY,
       });
-    } else if (typeof bin === 'object') {
+    } else if (isObject(bin)) {
       // Multiple commands
-      const binEntries = Object.entries(bin as Record<string, string>);
+      const binEntries = Object.entries(bin as Dictionary<string>);
       const packageName = packageJson.name as string;
 
       binEntries.forEach(([cmdName, cmdPath], index) => {
@@ -151,24 +170,25 @@ export class PackageAnalyzer {
   /**
    * Extract examples from npt.examples field
    */
-  private extractExamples(packageJson: Record<string, unknown>): CLIExample[] | undefined {
-    const npt = packageJson.npt as Record<string, unknown> | undefined;
+  private extractExamples(packageJson: Dictionary<unknown>): Optional<CLIExample[]> {
+    const npt = isObject(packageJson.npt) ? (packageJson.npt as Dictionary<unknown>) : undefined;
 
-    if (!npt || !npt.examples) {
+    if (!npt || isNil(npt.examples)) {
       return undefined;
     }
 
-    const examples = npt.examples as Array<Record<string, unknown>>;
-
-    if (!Array.isArray(examples)) {
+    if (!isArray(npt.examples)) {
       return undefined;
     }
+
+    const examples = npt.examples as Array<Dictionary<unknown>>;
 
     return examples
-      .filter((ex) => typeof ex.command === 'string' && typeof ex.description === 'string')
+      .filter((ex): ex is Dictionary<unknown> => isObject(ex))
+      .filter((ex): ex is Dictionary<string> => isString(ex.command) && isString(ex.description))
       .map((ex) => ({
-        command: ex.command as string,
-        description: ex.description as string,
+        command: ex.command,
+        description: ex.description,
       }));
   }
 
@@ -178,7 +198,7 @@ export class PackageAnalyzer {
   private determineCommandType(
     commandName: string,
     packageName: string,
-    isFirst: boolean,
+    isFirst: boolean
   ): CommandType {
     // If command name matches package name, it's primary
     if (commandName === packageName) {

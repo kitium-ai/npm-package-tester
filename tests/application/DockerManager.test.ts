@@ -2,7 +2,8 @@
  * Unit tests for DockerManager
  */
 
-import { DockerManager } from '../../src/application/DockerManager';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { DockerManager } from 'application/DockerManager';
 
 describe('DockerManager', () => {
   let dockerManager: DockerManager;
@@ -13,76 +14,68 @@ describe('DockerManager', () => {
 
   describe('configureNpmAuth', () => {
     it('should create .npmrc with npm token', async () => {
-      const mockCreateFile = jest
-        .spyOn(dockerManager as any, 'createFile')
-        .mockResolvedValue(undefined);
+      const mockCreateFile = vi.spyOn(dockerManager, 'createFile').mockResolvedValue(undefined);
 
       await dockerManager.configureNpmAuth('container-id', 'test-token');
 
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('//registry.npmjs.org/:_authToken=test-token'),
+        expect.stringContaining('//registry.npmjs.org/:_authToken=test-token')
       );
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('always-auth=true'),
+        expect.stringContaining('always-auth=true')
       );
 
       mockCreateFile.mockRestore();
     });
 
     it('should create .npmrc with custom registry', async () => {
-      const mockCreateFile = jest
-        .spyOn(dockerManager as any, 'createFile')
-        .mockResolvedValue(undefined);
+      const mockCreateFile = vi.spyOn(dockerManager, 'createFile').mockResolvedValue(undefined);
 
       await dockerManager.configureNpmAuth('container-id', undefined, 'https://npm.custom.com');
 
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('registry=https://npm.custom.com'),
+        expect.stringContaining('registry=https://npm.custom.com')
       );
 
       mockCreateFile.mockRestore();
     });
 
     it('should create .npmrc with both token and custom registry', async () => {
-      const mockCreateFile = jest
-        .spyOn(dockerManager as any, 'createFile')
-        .mockResolvedValue(undefined);
+      const mockCreateFile = vi.spyOn(dockerManager, 'createFile').mockResolvedValue(undefined);
 
       await dockerManager.configureNpmAuth(
         'container-id',
         'custom-token',
-        'https://npm.company.com',
+        'https://npm.company.com'
       );
 
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('registry=https://npm.company.com'),
+        expect.stringContaining('registry=https://npm.company.com')
       );
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('//npm.company.com/:_authToken=custom-token'),
+        expect.stringContaining('//npm.company.com/:_authToken=custom-token')
       );
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('always-auth=true'),
+        expect.stringContaining('always-auth=true')
       );
 
       mockCreateFile.mockRestore();
     });
 
     it('should not create .npmrc when no token or registry provided', async () => {
-      const mockCreateFile = jest
-        .spyOn(dockerManager as any, 'createFile')
-        .mockResolvedValue(undefined);
+      const mockCreateFile = vi.spyOn(dockerManager, 'createFile').mockResolvedValue(undefined);
 
       await dockerManager.configureNpmAuth('container-id');
 
@@ -92,20 +85,18 @@ describe('DockerManager', () => {
     });
 
     it('should extract hostname from registry URL', async () => {
-      const mockCreateFile = jest
-        .spyOn(dockerManager as any, 'createFile')
-        .mockResolvedValue(undefined);
+      const mockCreateFile = vi.spyOn(dockerManager, 'createFile').mockResolvedValue(undefined);
 
       await dockerManager.configureNpmAuth(
         'container-id',
         'token123',
-        'https://npm.pkg.github.com/',
+        'https://npm.pkg.github.com/'
       );
 
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('//npm.pkg.github.com/:_authToken=token123'),
+        expect.stringContaining('//npm.pkg.github.com/:_authToken=token123')
       );
 
       mockCreateFile.mockRestore();
@@ -114,10 +105,10 @@ describe('DockerManager', () => {
 
   describe('installPackage', () => {
     it('should configure auth before installing', async () => {
-      const mockConfigureAuth = jest
+      const mockConfigureAuth = vi
         .spyOn(dockerManager, 'configureNpmAuth')
         .mockResolvedValue(undefined);
-      const mockExecuteCommand = jest.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
+      const mockExecuteCommand = vi.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
         exitCode: 0,
         stdout: 'installed',
         stderr: '',
@@ -128,13 +119,13 @@ describe('DockerManager', () => {
         'test-package',
         undefined,
         'npm-token',
-        'https://registry.com',
+        'https://registry.com'
       );
 
       expect(mockConfigureAuth).toHaveBeenCalledWith(
         'container-id',
         'npm-token',
-        'https://registry.com',
+        'https://registry.com'
       );
       expect(mockExecuteCommand).toHaveBeenCalledWith('container-id', [
         'npm',
@@ -148,10 +139,10 @@ describe('DockerManager', () => {
     });
 
     it('should install without auth when no token provided', async () => {
-      const mockConfigureAuth = jest
+      const mockConfigureAuth = vi
         .spyOn(dockerManager, 'configureNpmAuth')
         .mockResolvedValue(undefined);
-      const mockExecuteCommand = jest.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
+      const mockExecuteCommand = vi.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
         exitCode: 0,
         stdout: 'installed',
         stderr: '',
@@ -169,7 +160,7 @@ describe('DockerManager', () => {
 
   describe('file operations', () => {
     it('should create file in container', async () => {
-      const mockExecuteCommand = jest.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
+      const mockExecuteCommand = vi.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
         exitCode: 0,
         stdout: '',
         stderr: '',
@@ -179,14 +170,14 @@ describe('DockerManager', () => {
 
       expect(mockExecuteCommand).toHaveBeenCalledWith(
         'container-id',
-        expect.arrayContaining(['sh', '-c']),
+        expect.arrayContaining(['sh', '-c'])
       );
 
       mockExecuteCommand.mockRestore();
     });
 
     it('should create directory in container', async () => {
-      const mockExecuteCommand = jest.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
+      const mockExecuteCommand = vi.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
         exitCode: 0,
         stdout: '',
         stderr: '',
@@ -200,7 +191,7 @@ describe('DockerManager', () => {
     });
 
     it('should read file from container', async () => {
-      const mockExecuteCommand = jest.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
+      const mockExecuteCommand = vi.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
         exitCode: 0,
         stdout: 'file content',
         stderr: '',
@@ -215,7 +206,7 @@ describe('DockerManager', () => {
     });
 
     it('should check if file exists', async () => {
-      const mockExecuteCommand = jest.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
+      const mockExecuteCommand = vi.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
         exitCode: 0,
         stdout: '',
         stderr: '',
@@ -234,7 +225,7 @@ describe('DockerManager', () => {
     });
 
     it('should return false when file does not exist', async () => {
-      const mockExecuteCommand = jest.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
+      const mockExecuteCommand = vi.spyOn(dockerManager, 'executeCommand').mockResolvedValue({
         exitCode: 1,
         stdout: '',
         stderr: '',

@@ -84,12 +84,7 @@ export class TypeDefinitionParser {
    */
   parseTypeDefinitionContent(content: string, filePath: string = 'index.d.ts'): TypeDefinitionInfo {
     try {
-      const sourceFile = ts.createSourceFile(
-        filePath,
-        content,
-        ts.ScriptTarget.Latest,
-        true,
-      );
+      const sourceFile = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true);
 
       const info: TypeDefinitionInfo = {
         filePath,
@@ -123,10 +118,7 @@ export class TypeDefinitionParser {
       return;
     }
 
-    if (
-      ts.isInterfaceDeclaration(node) &&
-      this.isExported(node as any)
-    ) {
+    if (ts.isInterfaceDeclaration(node) && this.isExported(node)) {
       const interfaceInfo = this.extractInterfaceInfo(node);
       info.interfaces.push(interfaceInfo);
       info.exports.push({
@@ -138,10 +130,7 @@ export class TypeDefinitionParser {
       return;
     }
 
-    if (
-      ts.isTypeAliasDeclaration(node) &&
-      this.isExported(node as any)
-    ) {
+    if (ts.isTypeAliasDeclaration(node) && this.isExported(node)) {
       const typeStr = this.getTypeString(node.type);
       info.typeAliases.push({
         name: node.name.text,
@@ -156,10 +145,7 @@ export class TypeDefinitionParser {
       return;
     }
 
-    if (
-      ts.isEnumDeclaration(node) &&
-      this.isExported(node as any)
-    ) {
+    if (ts.isEnumDeclaration(node) && this.isExported(node)) {
       const enumInfo = this.extractEnumInfo(node);
       info.enums.push(enumInfo);
       info.exports.push({
@@ -171,11 +157,7 @@ export class TypeDefinitionParser {
       return;
     }
 
-    if (
-      ts.isFunctionDeclaration(node) &&
-      this.isExported(node as any) &&
-      node.name
-    ) {
+    if (ts.isFunctionDeclaration(node) && this.isExported(node) && node.name) {
       const signature = this.extractFunctionSignature(node);
       info.exports.push({
         name: node.name.text,
@@ -187,11 +169,7 @@ export class TypeDefinitionParser {
       return;
     }
 
-    if (
-      ts.isClassDeclaration(node) &&
-      this.isExported(node as any) &&
-      node.name
-    ) {
+    if (ts.isClassDeclaration(node) && this.isExported(node) && node.name) {
       info.exports.push({
         name: node.name.text,
         kind: 'class',
@@ -201,7 +179,7 @@ export class TypeDefinitionParser {
       return;
     }
 
-    if (ts.isVariableStatement(node) && this.isExported(node as any)) {
+    if (ts.isVariableStatement(node) && this.isExported(node)) {
       for (const declaration of node.declarationList.declarations) {
         if (ts.isIdentifier(declaration.name)) {
           const kind = node.declarationList.flags & ts.NodeFlags.Const ? 'const' : 'variable';
@@ -233,7 +211,8 @@ export class TypeDefinitionParser {
         const type = member.type ? this.getTypeString(member.type) : 'any';
         const optional = !!member.questionToken;
         const readonlyFlag =
-          member.modifiers && member.modifiers.some((m) => m.kind === ts.SyntaxKind.ReadonlyKeyword);
+          member.modifiers &&
+          member.modifiers.some((m) => m.kind === ts.SyntaxKind.ReadonlyKeyword);
 
         properties.push({
           name,
@@ -332,9 +311,8 @@ export class TypeDefinitionParser {
    */
   private getTypeString(typeNode: ts.TypeNode): string {
     const printer = ts.createPrinter();
-    return printer
-      .printNode(ts.EmitHint.Unspecified, typeNode as any, undefined as any)
-      .trim();
+    const sourceFile = typeNode.getSourceFile();
+    return printer.printNode(ts.EmitHint.Unspecified, typeNode, sourceFile).trim();
   }
 
   /**
@@ -366,7 +344,10 @@ export class TypeDefinitionParser {
   /**
    * Check if node is exported
    */
-  private isExported(node: any): boolean {
-    return !!(node.modifiers && node.modifiers.some((m: ts.Modifier) => m.kind === ts.SyntaxKind.ExportKeyword));
+  private isExported(node: ts.Node): boolean {
+    const modifiers = (node as ts.Node & { modifiers?: ts.NodeArray<ts.ModifierLike> }).modifiers;
+    return Boolean(
+      modifiers && modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
+    );
   }
 }

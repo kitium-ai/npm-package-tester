@@ -39,11 +39,11 @@ jobs:
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
           echo "Package version: $PACKAGE_VERSION"
           echo "Release tag: ${{ github.event.release.tag_name }}"
-          
+
           # Remove 'v' prefix if present in tag
           TAG_VERSION="${{ github.event.release.tag_name }}"
           TAG_VERSION="${TAG_VERSION#v}"
-          
+
           if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
             echo "Error: Package version ($PACKAGE_VERSION) doesn't match release tag ($TAG_VERSION)"
             exit 1
@@ -66,4 +66,3 @@ jobs:
               auto_merge: false,
               required_contexts: []
             })
-

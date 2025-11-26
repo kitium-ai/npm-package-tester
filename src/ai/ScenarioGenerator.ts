@@ -2,9 +2,9 @@
  * Generates test scenarios using AI
  */
 
-import { PackageInfo, TestScenario, AIConfig } from '../domain/models/types';
+import { PackageInfo, TestScenario, AIConfig } from 'domain/models/types';
 import { AIProviderFactory } from './AIProvider';
-import { DockerManager } from '../application/DockerManager';
+import { DockerManager } from 'application/DockerManager';
 
 export class ScenarioGenerator {
   private readonly dockerManager: DockerManager;
@@ -19,7 +19,7 @@ export class ScenarioGenerator {
   async generateScenarios(
     packageInfo: PackageInfo,
     aiConfig: AIConfig,
-    containerId?: string,
+    containerId?: string
   ): Promise<TestScenario[]> {
     // Get CLI help output
     let cliHelp = '';
@@ -47,7 +47,7 @@ export class ScenarioGenerator {
       readme,
       cliHelp,
       packageInfo.commands.map((c) => c.name),
-      packageInfo.examples,
+      packageInfo.examples
     );
 
     return scenarios;
@@ -62,8 +62,8 @@ export class ScenarioGenerator {
       if (!response.ok) {
         return '';
       }
-      const data = (await response.json()) as any;
-      return data.readme || '';
+      const data = (await response.json()) as { readme?: string };
+      return typeof data.readme === 'string' ? data.readme : '';
     } catch {
       return '';
     }

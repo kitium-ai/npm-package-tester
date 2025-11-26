@@ -2,6 +2,8 @@
  * Core domain types for npm-package-tester
  */
 
+import type { Dictionary, Optional } from '@kitiumai/types';
+
 /**
  * npm package information
  */
@@ -11,21 +13,21 @@ export interface PackageInfo {
   /** Package version */
   readonly version: string;
   /** Package description */
-  readonly description?: string;
+  readonly description?: Optional<string>;
   /** CLI commands available */
   readonly commands: readonly CLICommand[];
   /** Dependencies */
-  readonly dependencies: Record<string, string>;
+  readonly dependencies: Dictionary<string>;
   /** Peer dependencies */
-  readonly peerDependencies?: Record<string, string>;
+  readonly peerDependencies?: Dictionary<string>;
   /** Engines specification */
-  readonly engines?: Record<string, string>;
+  readonly engines?: Dictionary<string>;
   /** Example commands from npt.examples field */
-  readonly examples?: readonly CLIExample[];
+  readonly examples?: Optional<readonly CLIExample[]>;
   /** Library exports (if package exports a library) */
-  readonly exports?: LibraryExports;
+  readonly exports?: Optional<LibraryExports>;
   /** Package type info */
-  readonly type?: PackageType;
+  readonly type?: Optional<PackageType>;
 }
 
 /**

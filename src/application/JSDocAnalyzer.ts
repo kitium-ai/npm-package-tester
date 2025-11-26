@@ -2,7 +2,18 @@
  * Analyzes JSDoc comments for documentation completeness
  */
 
-import { LibraryExports } from '../domain/models/types';
+import { LibraryExports } from 'domain/models/types';
+
+type AnalyzableExport =
+  | LibraryExports['namedExports'][number]
+  | {
+      name: 'default';
+      type: 'default';
+      jsDoc?: string;
+      signature?: string;
+      description?: string;
+      paramCount?: number;
+    };
 
 export interface JSDocAnalysisResult {
   exports: JSDocExportAnalysis[];
@@ -40,16 +51,16 @@ export class JSDocAnalyzer {
    * Analyze JSDoc documentation for library exports
    */
   analyzeExports(libraryExports: LibraryExports): JSDocAnalysisResult {
-    const allExports = [
+    const allExports: AnalyzableExport[] = [
       ...(libraryExports.hasDefaultExport
         ? [
             {
               name: 'default',
-              type: 'default',
+              type: 'default' as const,
               jsDoc: undefined,
               signature: undefined,
               description: undefined,
-            },
+            } satisfies AnalyzableExport,
           ]
         : []),
       ...libraryExports.namedExports,
@@ -66,12 +77,12 @@ export class JSDocAnalyzer {
       averageCompleteness:
         exportAnalyses.length > 0
           ? Math.round(
-              exportAnalyses.reduce((sum, e) => sum + e.completeness, 0) / exportAnalyses.length,
+              exportAnalyses.reduce((sum, e) => sum + e.completeness, 0) / exportAnalyses.length
             )
           : 0,
       criticalIssues: exportAnalyses.reduce(
         (sum, e) => sum + e.issues.filter((i) => i.severity === 'error').length,
-        0,
+        0
       ),
     };
 
@@ -84,7 +95,7 @@ export class JSDocAnalyzer {
   /**
    * Analyze single export documentation
    */
-  private analyzeExport(exp: any): JSDocExportAnalysis {
+  private analyzeExport(exp: AnalyzableExport): JSDocExportAnalysis {
     const issues: DocumentationIssue[] = [];
     let completenessScore = 0;
     let scoreItems = 0;
@@ -115,7 +126,11 @@ export class JSDocAnalyzer {
     }
 
     // Check for @param documentation in functions
-    if ((exp.type === 'function' || exp.type === 'constant') && exp.paramCount && exp.paramCount > 0) {
+    if (
+      (exp.type === 'function' || exp.type === 'constant') &&
+      exp.paramCount &&
+      exp.paramCount > 0
+    ) {
       const hasParamDocs = this.hasParamDocumentation(exp.jsDoc, exp.paramCount);
       if (hasParamDocs) {
         completenessScore += 20;
@@ -170,7 +185,7 @@ export class JSDocAnalyzer {
     const hasParamDocs = this.hasParamDocumentation(exp.jsDoc, exp.paramCount || 0);
     const hasReturnDoc = this.hasReturnDocumentation(exp.jsDoc);
     const hasTypeInfo = !!(exp.signature || exp.jsDoc?.includes('@type'));
-    const hasExampleCode = !!(exp.jsDoc?.includes('@example'));
+    const hasExampleCode = !!exp.jsDoc?.includes('@example');
 
     // Calculate final completeness score
     const completeness = scoreItems > 0 ? Math.round(completenessScore / scoreItems) : 0;
@@ -192,7 +207,9 @@ export class JSDocAnalyzer {
    * Check if JSDoc has parameter documentation
    */
   private hasParamDocumentation(jsDoc: string | undefined, paramCount: number): boolean {
-    if (!jsDoc) return false;
+    if (!jsDoc) {
+      return false;
+    }
 
     // Count @param tags
     const paramMatches = jsDoc.match(/@param\s+/g) || [];
@@ -203,7 +220,9 @@ export class JSDocAnalyzer {
    * Check if JSDoc has return documentation
    */
   private hasReturnDocumentation(jsDoc: string | undefined): boolean {
-    if (!jsDoc) return false;
+    if (!jsDoc) {
+      return false;
+    }
 
     return /@returns?(\s|$|\n)/.test(jsDoc);
   }
@@ -242,7 +261,8 @@ export class JSDocAnalyzer {
       if (exp.issues.length > 0) {
         report += '\n**Issues**:\n';
         for (const issue of exp.issues) {
-          const icon = issue.severity === 'error' ? '❌' : issue.severity === 'warning' ? '⚠️' : 'ℹ️';
+          const icon =
+            issue.severity === 'error' ? '❌' : issue.severity === 'warning' ? '⚠️' : 'ℹ️';
           report += `- ${icon} ${issue.message}\n`;
         }
       }
@@ -257,10 +277,18 @@ export class JSDocAnalyzer {
    * Get icon for completeness level
    */
   private getCompletenessIcon(completeness: number): string {
-    if (completeness === 100) return '✅';
-    if (completeness >= 75) return '🟢';
-    if (completeness >= 50) return '🟡';
-    if (completeness >= 25) return '🟠';
+    if (completeness === 100) {
+      return '✅';
+    }
+    if (completeness >= 75) {
+      return '🟢';
+    }
+    if (completeness >= 50) {
+      return '🟡';
+    }
+    if (completeness >= 25) {
+      return '🟠';
+    }
     return '🔴';
   }
 

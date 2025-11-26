@@ -9,7 +9,7 @@ import {
   CLICommand,
   ProgressEvent,
   TestStage,
-} from '../domain/models/types';
+} from 'domain/models/types';
 
 export class ScenarioRunner {
   private readonly dockerManager: DockerManager;
@@ -28,7 +28,7 @@ export class ScenarioRunner {
     scenario: TestScenario,
     nodeVersion: string,
     command: CLICommand,
-    onProgress?: (event: ProgressEvent) => void,
+    onProgress?: (event: ProgressEvent) => void
   ): Promise<CommandTestResult> {
     const startTime = Date.now();
 
@@ -97,7 +97,9 @@ export class ScenarioRunner {
    * Setup test scenario environment
    */
   private async setupScenario(containerId: string, setup: TestScenario['setup']): Promise<void> {
-    if (!setup) return;
+    if (!setup) {
+      return;
+    }
 
     // Create directories
     if (setup.directories) {
@@ -141,7 +143,7 @@ export class ScenarioRunner {
   private async validateScenario(
     containerId: string,
     scenario: TestScenario,
-    result: { exitCode: number; stdout: string; stderr: string },
+    result: { exitCode: number; stdout: string; stderr: string }
   ): Promise<{ passed: boolean; error?: string }> {
     const validation = scenario.validate;
     const errors: string[] = [];

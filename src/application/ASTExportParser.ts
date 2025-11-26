@@ -6,13 +6,9 @@
 import * as fs from 'fs';
 import * as parser from '@babel/parser';
 import traverse, { NodePath } from '@babel/traverse';
+// @ts-expect-error - @babel/types types not available in current setup
 import * as t from '@babel/types';
-import {
-  LibraryExport,
-  LibraryExportType,
-  ClassMethod,
-  TypeProperty,
-} from '../domain/models/types';
+import { LibraryExport, LibraryExportType, ClassMethod, TypeProperty } from 'domain/models/types';
 
 export class ASTExportParser {
   /**
@@ -35,6 +31,7 @@ export class ASTExportParser {
       const exportedNames = new Set<string>();
 
       traverse(ast, {
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         ExportNamedDeclaration: (path) => {
           const namedExports = this.extractNamedExports(path);
           namedExports.forEach((exp) => {
@@ -44,6 +41,7 @@ export class ASTExportParser {
             }
           });
         },
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         ExportDefaultDeclaration: (path) => {
           const defaultExport = this.extractDefaultExport(path);
           if (defaultExport && !exportedNames.has('default')) {
@@ -54,7 +52,7 @@ export class ASTExportParser {
       });
 
       return exports;
-    } catch (error) {
+    } catch {
       // Silently fail - fall back to regex parsing
       return [];
     }
@@ -67,21 +65,26 @@ export class ASTExportParser {
     try {
       const isTypeScript = filePath.endsWith('.ts') || filePath.endsWith('.tsx');
 
+      const plugins: parser.ParserPlugin[] = [
+        'jsx',
+        'decorators-legacy',
+        'classProperties',
+        'logicalAssignment',
+        'optionalChaining',
+        'nullishCoalescingOperator',
+      ];
+
+      if (isTypeScript) {
+        plugins.push('typescript');
+      }
+
       return parser.parse(content, {
         sourceType: 'module',
-        plugins: [
-          'jsx',
-          isTypeScript && 'typescript',
-          'decorators-legacy',
-          'classProperties',
-          'logicalAssignment',
-          'optionalChaining',
-          'nullishCoalescingOperator',
-        ].filter(Boolean) as any[],
+        plugins,
         allowImportExportEverywhere: true,
         allowSuperOutsideMethod: true,
       });
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -181,8 +184,11 @@ export class ASTExportParser {
     const { declaration } = path.node;
     const jsDoc = this.extractJSDoc(path);
 
-    if (t.isFunctionDeclaration(declaration) || t.isArrowFunctionExpression(declaration) ||
-        t.isFunctionExpression(declaration)) {
+    if (
+      t.isFunctionDeclaration(declaration) ||
+      t.isArrowFunctionExpression(declaration) ||
+      t.isFunctionExpression(declaration)
+    ) {
       return {
         name: 'default',
         type: LibraryExportType.FUNCTION,
@@ -215,16 +221,26 @@ export class ASTExportParser {
   /**
    * Extract function signature
    */
-  private extractFunctionSignature(func: any): string {
+  private extractFunctionSignature(
+    func:
+      | t.FunctionDeclaration
+      | t.FunctionExpression
+      | t.ArrowFunctionExpression
+      | t.ObjectMethod
+      | t.ClassMethod
+  ): string {
     try {
-      const params = func.params.map((p: any) => {
-        if (t.isIdentifier(p)) {
-          return p.name;
-        } else if (t.isRestElement(p) && t.isIdentifier(p.argument)) {
-          return `...${p.argument.name}`;
-        }
-        return 'param';
-      }).join(', ');
+      const params = func.params
+        .map((param) => {
+          if (t.isIdentifier(param)) {
+            return param.name;
+          }
+          if (t.isRestElement(param) && t.isIdentifier(param.argument)) {
+            return `...${param.argument.name}`;
+          }
+          return 'param';
+        })
+        .join(', ');
 
       return `(${params})`;
     } catch {
@@ -282,7 +298,9 @@ export class ASTExportParser {
    * Extract type from annotation
    */
   private extractTypeFromAnnotation(annotation?: t.TSTypeAnnotation | null): string | undefined {
-    if (!annotation) return undefined;
+    if (!annotation) {
+      return undefined;
+    }
 
     try {
       if (t.isTSTypeReference(annotation.typeAnnotation)) {
@@ -299,8 +317,10 @@ export class ASTExportParser {
   /**
    * Infer type from initializer
    */
-  private inferTypeFromInit(init: any): LibraryExportType {
-    if (!init) return LibraryExportType.CONSTANT;
+  private inferTypeFromInit(init: t.Expression | null | undefined): LibraryExportType {
+    if (!init) {
+      return LibraryExportType.CONSTANT;
+    }
 
     if (t.isArrowFunctionExpression(init) || t.isFunctionExpression(init)) {
       return LibraryExportType.FUNCTION;
@@ -314,14 +334,14 @@ export class ASTExportParser {
   /**
    * Extract JSDoc from path
    */
-  private extractJSDoc(path: NodePath<any>): string | undefined {
+  private extractJSDoc(path: NodePath<t.Node>): string | undefined {
     return this.extractJSDocFromNode(path.node);
   }
 
   /**
    * Extract JSDoc from node
    */
-  private extractJSDocFromNode(node: any): string | undefined {
+  private extractJSDocFromNode(node: t.Node | null | undefined): string | undefined {
     if (!node || !node.leadingComments) {
       return undefined;
     }
@@ -339,7 +359,9 @@ export class ASTExportParser {
    * Extract description from JSDoc
    */
   private extractDescription(jsDoc?: string): string | undefined {
-    if (!jsDoc) return undefined;
+    if (!jsDoc) {
+      return undefined;
+    }
 
     // Remove comment markers and extract first line
     const lines = jsDoc

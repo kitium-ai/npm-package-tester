@@ -14,6 +14,7 @@ This major release expands the npm-package-tester from CLI-only testing (~20% of
 ### ✨ Added
 
 #### Priority 1: Library Export Detection & Testing
+
 - **LibraryExportDetector**: Advanced export detection with dual parsing approach
   - AST-based parsing using Babel for accurate function/class/interface detection
   - Regex fallback for edge cases and edge files
@@ -34,6 +35,7 @@ This major release expands the npm-package-tester from CLI-only testing (~20% of
   - Instantiation and basic usage patterns
 
 #### Priority 3: Enhanced AI Library Scenario Generation
+
 - **Enhanced LibraryScenarioGenerator**: Advanced AI-powered test generation
   - Generates 4-6 comprehensive test scenarios per package (up from 2-4)
   - Scenario categories:
@@ -57,6 +59,7 @@ This major release expands the npm-package-tester from CLI-only testing (~20% of
   - Code executability requirements
 
 #### Priority 4: Type Checking & Validation
+
 - **TypeDefinitionParser**: AST-based .d.ts file parsing
   - TypeScript compiler API integration
   - Extracts: interfaces, type aliases, enums, functions, classes, variables
@@ -88,6 +91,7 @@ This major release expands the npm-package-tester from CLI-only testing (~20% of
   - Markdown report generation
 
 #### Integration & CLI
+
 - **TestRunner**: Type validation integration
   - Automatic type validation for library packages
   - Non-blocking validation (doesn't fail tests)
@@ -139,16 +143,17 @@ This major release expands the npm-package-tester from CLI-only testing (~20% of
 
 ### 📊 Scope Expansion
 
-| Metric | v1.0.1 | v2.0.0 | Growth |
-|--------|--------|--------|--------|
-| Package Support | CLI only (~20%) | CLI + Library (~90%) | 4.5x |
-| Test Scenarios | 2-4 per package | 4-6+ per package | 2-3x |
-| Validation | Basic | Advanced (types, docs) | New |
-| Export Info | Name + type | Signature + methods + properties | 3x detail |
+| Metric          | v1.0.1          | v2.0.0                           | Growth    |
+| --------------- | --------------- | -------------------------------- | --------- |
+| Package Support | CLI only (~20%) | CLI + Library (~90%)             | 4.5x      |
+| Test Scenarios  | 2-4 per package | 4-6+ per package                 | 2-3x      |
+| Validation      | Basic           | Advanced (types, docs)           | New       |
+| Export Info     | Name + type     | Signature + methods + properties | 3x detail |
 
 ### 🔍 What's Next
 
 Future priorities:
+
 - **Priority 5**: Enhanced error recovery and retry mechanisms
 - **Priority 6**: Performance optimization and parallel testing
 - **Priority 7**: Custom test framework integration (Jest, Mocha, etc.)
@@ -169,6 +174,7 @@ npm update @kitiumai/npm-package-tester
 ```
 
 New features are automatically available:
+
 - Library exports are automatically detected and analyzed
 - Type validation is automatically performed for library packages
 - AI-generated library scenarios are available with `--ai-provider` flag
@@ -182,9 +188,11 @@ New features are automatically available:
 ## [1.0.1] - 2025-11-20
 
 ### Fixed
+
 - Minor bug fixes and improvements
 
 ### Changed
+
 - Initial stable release with CLI testing support
 
 ---
@@ -192,6 +200,7 @@ New features are automatically available:
 ## [1.0.0] - 2025-11-20
 
 ### Added
+
 - Initial release
 - CLI command detection and testing
 - Docker-based isolated testing environment

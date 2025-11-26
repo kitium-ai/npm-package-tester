@@ -20,12 +20,12 @@ jobs:
         uses: actions/stale@v9
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          
+
           # Issues
           stale-issue-message: |
             This issue has been automatically marked as stale because it has not had recent activity. 
             It will be closed in 7 days if no further activity occurs. 
-            
+
             If you believe this issue is still relevant, please leave a comment to keep it open.
             Thank you for your contributions! 🙏
           close-issue-message: |
@@ -35,12 +35,12 @@ jobs:
           days-before-close: 7
           stale-issue-label: 'stale'
           exempt-issue-labels: 'bug,enhancement,good first issue,help wanted,pinned'
-          
+
           # Pull Requests
           stale-pr-message: |
             This pull request has been automatically marked as stale because it has not had recent activity.
             It will be closed in 7 days if no further activity occurs.
-            
+
             If you're still working on this, please leave a comment to keep it open.
             Thank you for your contributions! 🙏
           close-pr-message: |
@@ -50,9 +50,8 @@ jobs:
           days-before-pr-close: 7
           stale-pr-label: 'stale'
           exempt-pr-labels: 'in progress,on hold,pinned'
-          
+
           # General
           operations-per-run: 100
           remove-stale-when-updated: true
           ascending: true
-

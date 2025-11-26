@@ -14,16 +14,19 @@ import {
   PackageManager,
   CLICommand,
   LibraryTestScenario,
+  LibraryExports,
   TypeValidationReport,
   ValidationIssue,
-} from '../domain/models/types';
+} from 'domain/models/types';
 import { DockerManager } from './DockerManager';
 import { PackageAnalyzer } from './PackageAnalyzer';
 import { ScenarioRunner } from './ScenarioRunner';
-import { ScenarioGenerator } from '../ai/ScenarioGenerator';
+import { ScenarioGenerator } from 'ai/ScenarioGenerator';
 import { LibraryScenarioRunner } from './LibraryScenarioRunner';
-import { LibraryScenarioGenerator } from '../ai/LibraryScenarioGenerator';
+import { LibraryScenarioGenerator } from 'ai/LibraryScenarioGenerator';
 import { JSDocAnalyzer } from './JSDocAnalyzer';
+import { getLogger } from '@kitiumai/logger';
+import { deepMerge } from '@kitiumai/utils-ts';
 
 export class TestRunner {
   private readonly dockerManager: DockerManager;
@@ -33,6 +36,7 @@ export class TestRunner {
   private readonly libraryScenarioRunner: LibraryScenarioRunner;
   private readonly libraryScenarioGenerator: LibraryScenarioGenerator;
   private readonly jsDocAnalyzer: JSDocAnalyzer;
+  private readonly logger = getLogger();
 
   constructor() {
     this.dockerManager = new DockerManager();
@@ -50,7 +54,7 @@ export class TestRunner {
   async testPackage(
     packageSource: string,
     config: Partial<TestConfig>,
-    onProgress?: (event: ProgressEvent) => void,
+    onProgress?: (event: ProgressEvent) => void
   ): Promise<PackageTestSummary> {
     const startTime = Date.now();
 
@@ -78,7 +82,11 @@ export class TestRunner {
       const testConfig = this.prepareConfig(config);
 
       // Run tests
-      const { cliResults, libraryResults } = await this.runTests(packageInfo, testConfig, onProgress);
+      const { cliResults, libraryResults } = await this.runTests(
+        packageInfo,
+        testConfig,
+        onProgress
+      );
       const allResults = [...cliResults, ...libraryResults];
 
       // Validate types if library package
@@ -131,7 +139,7 @@ export class TestRunner {
   private async runTests(
     packageInfo: PackageInfo,
     config: TestConfig,
-    onProgress?: (event: ProgressEvent) => void,
+    onProgress?: (event: ProgressEvent) => void
   ): Promise<{ cliResults: CommandTestResult[]; libraryResults: LibraryTestResult[] }> {
     const cliResults: CommandTestResult[] = [];
     const libraryResults: LibraryTestResult[] = [];
@@ -151,7 +159,7 @@ export class TestRunner {
       const container = await this.dockerManager.createTestContainer(
         environment,
         packageInfo.name,
-        onProgress,
+        onProgress
       );
 
       // Install package with authentication if needed
@@ -160,7 +168,7 @@ export class TestRunner {
         packageInfo.name,
         onProgress,
         config.npmToken,
-        config.npmRegistry,
+        config.npmRegistry
       );
 
       // Generate AI scenarios if configured
@@ -174,7 +182,7 @@ export class TestRunner {
           const aiScenarios = await this.scenarioGenerator.generateScenarios(
             packageInfo,
             config.ai,
-            container.id,
+            container.id
           );
 
           this.emitProgress(onProgress, {
@@ -193,7 +201,7 @@ export class TestRunner {
                 scenario,
                 nodeVersion,
                 command,
-                onProgress,
+                onProgress
               );
               // Mark as AI-generated test
               cliResults.push({
@@ -209,7 +217,7 @@ export class TestRunner {
             stage: TestStage.ERROR,
             message: `AI scenario generation failed: ${(error as Error).message}`,
           });
-          console.error('AI Error:', error);
+          this.logger.error('AI Error:', error);
         }
       }
 
@@ -229,7 +237,7 @@ export class TestRunner {
             command.name,
             ['--help'],
             nodeVersion,
-            command,
+            command
           );
           cliResults.push({
             ...helpResult,
@@ -244,7 +252,7 @@ export class TestRunner {
             command.name,
             ['--version'],
             nodeVersion,
-            command,
+            command
           );
           cliResults.push({
             ...versionResult,
@@ -259,7 +267,7 @@ export class TestRunner {
             command.name,
             [],
             nodeVersion,
-            command,
+            command
           );
           cliResults.push({
             ...noArgsResult,
@@ -279,14 +287,14 @@ export class TestRunner {
             nodeVersion,
             config,
             libraryResults,
-            onProgress,
+            onProgress
           );
         } catch (error) {
           this.emitProgress(onProgress, {
             stage: TestStage.ERROR,
             message: `Library testing failed: ${(error as Error).message}`,
           });
-          console.error('Library test error:', error);
+          this.logger.error('Library test error:', error);
         }
       }
     }
@@ -303,7 +311,7 @@ export class TestRunner {
     nodeVersion: string,
     config: TestConfig,
     libraryResults: LibraryTestResult[],
-    onProgress?: (event: ProgressEvent) => void,
+    onProgress?: (event: ProgressEvent) => void
   ): Promise<void> {
     if (!packageInfo.exports) {
       return;
@@ -322,7 +330,7 @@ export class TestRunner {
         scenarios = await this.libraryScenarioGenerator.generateScenarios(
           packageInfo,
           packageInfo.exports,
-          config.ai,
+          config.ai
         );
 
         this.emitProgress(onProgress, {
@@ -334,7 +342,7 @@ export class TestRunner {
           stage: TestStage.ERROR,
           message: `AI library scenario generation failed: ${(error as Error).message}`,
         });
-        console.error('AI library generation error:', error);
+        this.logger.error('AI library generation error:', error);
         // Continue without AI scenarios
       }
     } else {
@@ -352,7 +360,7 @@ export class TestRunner {
       const result = await this.libraryScenarioRunner.runScenario(
         containerId,
         scenario,
-        nodeVersion,
+        nodeVersion
       );
 
       libraryResults.push(result);
@@ -364,7 +372,7 @@ export class TestRunner {
    */
   private generateBasicLibraryScenarios(
     packageInfo: PackageInfo,
-    exports: any,
+    libraryExports: LibraryExports
   ): LibraryTestScenario[] {
     const scenarios: LibraryTestScenario[] = [];
 
@@ -379,8 +387,8 @@ export class TestRunner {
     });
 
     // Test named imports if available
-    if (exports.namedExports && exports.namedExports.length > 0) {
-      const firstExport = exports.namedExports[0];
+    if (libraryExports.namedExports && libraryExports.namedExports.length > 0) {
+      const firstExport = libraryExports.namedExports[0];
       scenarios.push({
         name: 'import-named',
         description: `Test importing named export "${firstExport.name}"`,
@@ -401,7 +409,7 @@ export class TestRunner {
     commandName: string,
     args: string[],
     nodeVersion: string,
-    command: CLICommand,
+    command: CLICommand
   ): Promise<CommandTestResult> {
     const startTime = Date.now();
 
@@ -448,7 +456,7 @@ export class TestRunner {
    */
   private isTestPassed(
     result: { exitCode: number; stdout: string; stderr: string },
-    args: string[],
+    args: string[]
   ): boolean {
     // For --help and --version, exit code 0 is expected
     if (args.includes('--help') || args.includes('--version')) {
@@ -486,19 +494,25 @@ export class TestRunner {
    * Prepare test configuration with defaults
    */
   private prepareConfig(partial: Partial<TestConfig>): TestConfig {
-    return {
-      package: partial.package || '',
-      nodeVersions: partial.nodeVersions || ['20'],
-      parallel: partial.parallel !== undefined ? partial.parallel : false,
-      timeout: partial.timeout || 30000,
-      keepContainers: partial.keepContainers !== undefined ? partial.keepContainers : false,
-      customTests: partial.customTests || [],
+    const defaults: TestConfig = {
+      package: partial.package ?? '',
+      nodeVersions: ['20'],
+      parallel: false,
+      timeout: 30000,
+      keepContainers: false,
+      customTests: [],
       scenarios: partial.scenarios,
-      skipDefaultTests: partial.skipDefaultTests || false,
+      skipDefaultTests: false,
       ai: partial.ai,
       npmToken: partial.npmToken,
       npmRegistry: partial.npmRegistry,
     };
+
+    // deepMerge expects a record; cast to and from unknown to satisfy the constraint
+    return deepMerge(
+      defaults as unknown as Record<string, unknown>,
+      partial as unknown as Partial<Record<string, unknown>>
+    ) as unknown as TestConfig;
   }
 
   /**
@@ -506,7 +520,7 @@ export class TestRunner {
    */
   private emitProgress(
     callback: ((event: ProgressEvent) => void) | undefined,
-    event: ProgressEvent,
+    event: ProgressEvent
   ): void {
     if (callback) {
       callback(event);
@@ -551,7 +565,7 @@ export class TestRunner {
             type: issue.severity === 'error' ? 'untyped' : 'undocumented',
             exportName: exportAnalysis.name,
             message: issue.message,
-            severity: issue.severity as any,
+            severity: issue.severity,
           });
         }
       }
@@ -559,7 +573,7 @@ export class TestRunner {
 
     // Count untyped exports (exports without JSDoc or type info)
     const untypedCount = packageInfo.exports.namedExports.filter(
-      (e) => !e.jsDoc && !e.signature && !e.description,
+      (e) => !e.jsDoc && !e.signature && !e.description
     ).length;
 
     return {

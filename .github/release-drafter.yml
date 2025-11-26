@@ -89,4 +89,3 @@ autolabeler:
     files:
       - 'package.json'
       - 'package-lock.json'
-

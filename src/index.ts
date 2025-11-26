@@ -3,7 +3,7 @@
  */
 
 // Export domain types
-export {
+export type {
   PackageInfo,
   CLICommand,
   CommandType,
@@ -24,14 +24,14 @@ export { ResultFormatter } from './formatters/ResultFormatter';
 
 // Convenience function
 import { TestRunner } from './application/TestRunner';
-import { TestConfig, PackageTestSummary } from './domain/models/types';
+import type { TestConfig, PackageTestSummary, PackageInfo } from './domain/models/types';
 
 /**
  * Test a package with simplified API
  */
 export async function testPackage(
   packageSource: string,
-  config?: Partial<TestConfig>,
+  config?: Partial<TestConfig>
 ): Promise<PackageTestSummary> {
   const runner = new TestRunner();
   return await runner.testPackage(packageSource, config || {});
@@ -40,8 +40,8 @@ export async function testPackage(
 /**
  * Analyze a package to detect CLI commands
  */
-export async function analyzePackage(packageSource: string): Promise<any> {
-  const { PackageAnalyzer } = await import('./application/PackageAnalyzer');
-  const analyzer = new PackageAnalyzer();
+export async function analyzePackage(packageSource: string): Promise<PackageInfo> {
+  const { PackageAnalyzer: packageAnalyzerClass } = await import('./application/PackageAnalyzer');
+  const analyzer = new packageAnalyzerClass();
   return await analyzer.analyze(packageSource);
 }

@@ -1,7 +1,7 @@
 name: Bug Report
 description: Report a bug or unexpected behavior
-title: "[Bug]: "
-labels: ["bug", "needs-triage"]
+title: '[Bug]: '
+labels: ['bug', 'needs-triage']
 body:
   - type: markdown
     attributes:
@@ -53,7 +53,7 @@ body:
     attributes:
       label: npm-package-tester Version
       description: What version are you using? (Run `npt --version`)
-      placeholder: "1.0.0"
+      placeholder: '1.0.0'
     validations:
       required: true
 
@@ -62,7 +62,7 @@ body:
     attributes:
       label: Node.js Version
       description: What version of Node.js? (Run `node --version`)
-      placeholder: "v20.10.0"
+      placeholder: 'v20.10.0'
     validations:
       required: true
 
@@ -71,7 +71,7 @@ body:
     attributes:
       label: Docker Version
       description: What version of Docker? (Run `docker --version`)
-      placeholder: "Docker version 24.0.7"
+      placeholder: 'Docker version 24.0.7'
     validations:
       required: true
 

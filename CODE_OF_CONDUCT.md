@@ -17,27 +17,27 @@ diverse, inclusive, and healthy community.
 Examples of behavior that contributes to a positive environment for our
 community include:
 
-* Demonstrating empathy and kindness toward other people
-* Being respectful of differing opinions, viewpoints, and experiences
-* Giving and gracefully accepting constructive feedback
-* Accepting responsibility and apologizing to those affected by our mistakes,
+- Demonstrating empathy and kindness toward other people
+- Being respectful of differing opinions, viewpoints, and experiences
+- Giving and gracefully accepting constructive feedback
+- Accepting responsibility and apologizing to those affected by our mistakes,
   and learning from the experience
-* Focusing on what is best not just for us as individuals, but for the overall
+- Focusing on what is best not just for us as individuals, but for the overall
   community
-* Using welcoming and inclusive language
-* Being patient with newcomers and helping them learn
-* Celebrating the success of others
+- Using welcoming and inclusive language
+- Being patient with newcomers and helping them learn
+- Celebrating the success of others
 
 Examples of unacceptable behavior include:
 
-* The use of sexualized language or imagery, and sexual attention or advances of
+- The use of sexualized language or imagery, and sexual attention or advances of
   any kind
-* Trolling, insulting or derogatory comments, and personal or political attacks
-* Public or private harassment
-* Publishing others' private information, such as a physical or email address,
+- Trolling, insulting or derogatory comments, and personal or political attacks
+- Public or private harassment
+- Publishing others' private information, such as a physical or email address,
   without their explicit permission
-* Dismissing or attacking inclusion-oriented requests
-* Other conduct which could reasonably be considered inappropriate in a
+- Dismissing or attacking inclusion-oriented requests
+- Other conduct which could reasonably be considered inappropriate in a
   professional setting
 
 ## Enforcement Responsibilities
@@ -141,24 +141,30 @@ For answers to common questions about this code of conduct, see the FAQ at
 Beyond the standards outlined above, we value:
 
 ### Collaboration
+
 We work together openly, sharing knowledge and helping each other succeed.
 
 ### Quality
+
 We strive for excellence in code, documentation, and communication.
 
 ### Inclusivity
+
 We welcome contributors from all backgrounds and skill levels. Everyone was a
 beginner once.
 
 ### Constructive Feedback
+
 We provide feedback that is helpful, specific, and kind. We receive feedback
 with an open mind and a growth mindset.
 
 ### Transparency
+
 We communicate openly about decisions, changes, and challenges facing the
 project.
 
 ### Responsibility
+
 We take ownership of our contributions and their impact on the community.
 
 ## Questions?
@@ -169,4 +175,3 @@ project maintainers at [ashish.yd@gmail.com](mailto:ashish.yd@gmail.com).
 ---
 
 **Let's build an amazing tool together! 🚀**
-

@@ -43,6 +43,7 @@
 When you publish an npm package, you need to verify:
 
 **For CLI packages:**
+
 - ✅ Does it install correctly?
 - ✅ Do all CLI commands work?
 - ✅ Does it work across different Node versions?
@@ -51,6 +52,7 @@ When you publish an npm package, you need to verify:
 - ✅ Does it run without crashing?
 
 **For library packages:**
+
 - ✅ Can the package be imported correctly?
 - ✅ Do exported functions/classes work as expected?
 - ✅ Do all main APIs function properly?
@@ -64,6 +66,7 @@ When you publish an npm package, you need to verify:
 `npm-package-tester` automatically:
 
 **For CLI packages:**
+
 1. 📦 Analyzes your package.json to detect CLI commands (from `bin` field)
 2. 🐳 Creates fresh Docker containers with specified Node versions
 3. 📥 Installs your package
@@ -71,6 +74,7 @@ When you publish an npm package, you need to verify:
 5. ✅ Reports which commands work and which don't
 
 **For library packages:**
+
 1. 📦 Analyzes your package.json to detect exports (main, exports, module fields)
 2. 🐳 Creates fresh Docker containers with specified Node versions
 3. 📥 Installs your package
@@ -80,18 +84,21 @@ When you publish an npm package, you need to verify:
 ## Features
 
 **CLI Testing:**
+
 - 🔍 **Auto-Discovery**: Automatically detects all CLI commands from `package.json` `bin` field
 - 🎯 **Smart Testing**: Automatically tries --help, --version, and no-args
 - 🤖 **AI-Powered Scenarios**: Generate realistic test scenarios using Claude, GPT-4, Gemini, or Groq
 - 📊 **Custom Tests**: Define your own test cases with setup and validation
 
 **Library Testing:**
+
 - 🔍 **Export Detection**: Automatically detects and analyzes all exported functions, classes, and constants
 - 📚 **Import Testing**: Validates that exports can be imported and used correctly
 - 🤖 **AI-Powered Library Tests**: Generate realistic usage scenarios for library APIs
 - ✨ **Type Support**: Detects TypeScript type definitions and validates type compatibility
 
 **General Features:**
+
 - 🐳 **Docker Isolation**: Tests run in isolated, clean environments
 - 🔄 **Multi-Version**: Test across Node 16, 18, 20, etc. simultaneously
 - ⚡ **Parallel Testing**: Run tests concurrently for speed
@@ -134,6 +141,7 @@ npt test --keep-containers
 ## Example Output
 
 ### Default Testing
+
 ```
 📦 Package: eslint
    Version: 8.50.0
@@ -162,6 +170,7 @@ npt test --keep-containers
 ```
 
 ### AI-Powered Testing
+
 ```
 📦 Package: env-type-generator
    Version: 1.0.0
@@ -284,6 +293,7 @@ RUN mycli --version
 ### 3. **Smart Testing**
 
 For each command, automatically tests:
+
 - `command --help` (should show help)
 - `command --version` (should show version)
 - `command` (no args - should not crash)
@@ -389,6 +399,7 @@ npt test env-type-generator --ai-provider anthropic --ai-token YOUR_TOKEN
 ```
 
 The AI will:
+
 1. 📖 Analyze the package README and CLI help
 2. 🧠 Understand what the package does
 3. 🎯 Generate realistic test scenarios with:
@@ -398,6 +409,7 @@ The AI will:
 4. ✅ Validate file creation, content, and exit codes
 
 **Example AI-Generated Scenarios:**
+
 ```
 🤖 Generating test scenarios with AI...
 ✨ Generated 4 AI test scenarios
@@ -413,12 +425,12 @@ The AI will:
 
 ### Supported AI Providers
 
-| Provider | Model | Setup |
-|----------|-------|-------|
+| Provider      | Model             | Setup                                                               |
+| ------------- | ----------------- | ------------------------------------------------------------------- |
 | **Anthropic** | Claude Sonnet 4.5 | Get key from [console.anthropic.com](https://console.anthropic.com) |
-| **OpenAI** | GPT-4o | Get key from [platform.openai.com](https://platform.openai.com) |
-| **Google** | Gemini 2.0 Flash | Get key from [ai.google.dev](https://ai.google.dev) |
-| **Groq** | Llama 3.3 70B | Get key from [console.groq.com](https://console.groq.com) |
+| **OpenAI**    | GPT-4o            | Get key from [platform.openai.com](https://platform.openai.com)     |
+| **Google**    | Gemini 2.0 Flash  | Get key from [ai.google.dev](https://ai.google.dev)                 |
+| **Groq**      | Llama 3.3 70B     | Get key from [console.groq.com](https://console.groq.com)           |
 
 The best model for each provider is automatically selected.
 

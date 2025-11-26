@@ -216,11 +216,11 @@ export async function detectCommands(packagePath: string): Promise<string[]> {
   try {
     const packageJson = await readPackageJson(packagePath);
     const commands = extractBinCommands(packageJson);
-    
+
     if (commands.length === 0) {
       throw new Error('No CLI commands found in package.json');
     }
-    
+
     return commands;
   } catch (error) {
     logger.error('Failed to detect commands', error);
@@ -250,15 +250,15 @@ describe('PackageAnalyzer', () => {
   describe('analyzePackage', () => {
     it('should detect CLI commands from bin field', async () => {
       const result = await analyzer.analyzePackage('./fixtures/simple-package');
-      
+
       expect(result.commands).toContain('mycli');
       expect(result.version).toBe('1.0.0');
     });
 
     it('should throw error for packages without bin field', async () => {
-      await expect(
-        analyzer.analyzePackage('./fixtures/no-bin-package')
-      ).rejects.toThrow('No CLI commands found');
+      await expect(analyzer.analyzePackage('./fixtures/no-bin-package')).rejects.toThrow(
+        'No CLI commands found',
+      );
     });
   });
 });
@@ -368,4 +368,3 @@ By contributing to npm-package-tester, you agree that your contributions will be
 **Thank you for contributing! 🙌**
 
 Your efforts help make npm package testing better for everyone.
-

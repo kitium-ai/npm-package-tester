@@ -2,8 +2,9 @@
  * Unit tests for ResultFormatter
  */
 
-import { ResultFormatter } from '../../src/formatters/ResultFormatter';
-import { PackageTestSummary, CLICommand, CommandType } from '../../src/domain/models/types';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { ResultFormatter } from 'formatters/ResultFormatter';
+import { PackageTestSummary, CLICommand, CommandType, TestStage } from 'domain/models/types';
 
 describe('ResultFormatter', () => {
   let formatter: ResultFormatter;
@@ -375,7 +376,7 @@ describe('ResultFormatter', () => {
   describe('formatProgress', () => {
     it('should format progress with icon', () => {
       const result = formatter.formatProgress({
-        stage: 'analyzing' as any,
+        stage: TestStage.ANALYZING,
         message: 'Analyzing package',
       });
 
@@ -385,7 +386,7 @@ describe('ResultFormatter', () => {
 
     it('should format testing stage', () => {
       const result = formatter.formatProgress({
-        stage: 'testing-command' as any,
+        stage: TestStage.TESTING_COMMAND,
         message: 'Testing command',
       });
 

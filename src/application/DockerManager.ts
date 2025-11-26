@@ -2,15 +2,17 @@
  * Manages Docker containers for testing npm packages
  */
 
-import Docker from 'dockerode';
-import { TestEnvironment, ContainerState, ProgressEvent, TestStage } from '../domain/models/types';
+import dockerode from 'dockerode';
+import { TestEnvironment, ContainerState, ProgressEvent, TestStage } from 'domain/models/types';
+
+/* eslint-disable @typescript-eslint/naming-convention */
 
 export class DockerManager {
-  private readonly docker: Docker;
+  private readonly docker: dockerode;
   private readonly containers: Set<string> = new Set();
 
   constructor() {
-    this.docker = new Docker();
+    this.docker = new dockerode();
   }
 
   /**
@@ -31,7 +33,7 @@ export class DockerManager {
   async createTestContainer(
     environment: TestEnvironment,
     packageName: string,
-    onProgress?: (event: ProgressEvent) => void,
+    onProgress?: (event: ProgressEvent) => void
   ): Promise<ContainerState> {
     // Pull image
     if (onProgress) {
@@ -85,7 +87,7 @@ export class DockerManager {
   async configureNpmAuth(
     containerId: string,
     npmToken?: string,
-    npmRegistry?: string,
+    npmRegistry?: string
   ): Promise<void> {
     if (!npmToken && !npmRegistry) {
       return; // No authentication needed
@@ -119,7 +121,7 @@ export class DockerManager {
     packageName: string,
     onProgress?: (event: ProgressEvent) => void,
     npmToken?: string,
-    npmRegistry?: string,
+    npmRegistry?: string
   ): Promise<void> {
     if (onProgress) {
       onProgress({
@@ -139,7 +141,7 @@ export class DockerManager {
    */
   async executeCommand(
     containerId: string,
-    command: string[],
+    command: string[]
   ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     const container = this.docker.getContainer(containerId);
 
@@ -223,7 +225,7 @@ export class DockerManager {
    */
   private async pullImage(image: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.docker.pull(image, (err: Error | null, stream: any) => {
+      this.docker.pull(image, (err: Error | null, stream: NodeJS.ReadableStream) => {
         if (err) {
           reject(err);
           return;
@@ -240,7 +242,7 @@ export class DockerManager {
           },
           () => {
             // Progress callback - ignore for now
-          },
+          }
         );
       });
     });

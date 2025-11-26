@@ -2,7 +2,7 @@
  * Validates runtime exports against TypeScript type definitions
  */
 
-import { LibraryExports } from '../domain/models/types';
+import { LibraryExportType, LibraryExports } from 'domain/models/types';
 import { TypeDefinitionParser, TypeDefinitionInfo } from './TypeDefinitionParser';
 
 export interface TypeValidationResult {
@@ -33,6 +33,10 @@ export interface ValidationSummary {
   documentationCoverage: number; // 0-100
 }
 
+type RuntimeExport =
+  | LibraryExports['namedExports'][number]
+  | { name: 'default'; type: LibraryExportType.DEFAULT; description?: string };
+
 export class TypeValidator {
   private parser: TypeDefinitionParser;
 
@@ -40,13 +44,14 @@ export class TypeValidator {
     this.parser = new TypeDefinitionParser();
   }
 
+  private hasDescription(exportItem: RuntimeExport): boolean {
+    return Boolean('description' in exportItem && exportItem.description);
+  }
+
   /**
    * Validate runtime exports against type definitions
    */
-  validateExports(
-    libraryExports: LibraryExports,
-    typeDefContent?: string,
-  ): TypeValidationResult {
+  validateExports(libraryExports: LibraryExports, typeDefContent?: string): TypeValidationResult {
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
 
@@ -55,9 +60,9 @@ export class TypeValidator {
       typeDefInfo = this.parser.parseTypeDefinitionContent(typeDefContent, 'index.d.ts');
     }
 
-    const allExports = [
+    const allExports: RuntimeExport[] = [
       ...(libraryExports.hasDefaultExport
-        ? [{ name: 'default', type: 'default' as const }]
+        ? [{ name: 'default', type: LibraryExportType.DEFAULT }]
         : []),
       ...libraryExports.namedExports,
     ];
@@ -84,7 +89,7 @@ export class TypeValidator {
         });
       } else {
         // Check if kind matches
-        const expectedKind = this.mapExportTypeToKind((exportItem as any).type);
+        const expectedKind = this.mapExportTypeToKind(exportItem.type);
         if (expectedKind && typeInfo.kind !== expectedKind && expectedKind !== 'variable') {
           warnings.push({
             type: 'untyped-export',
@@ -104,7 +109,8 @@ export class TypeValidator {
       }
 
       // Check if documented
-      if (!typeInfo?.description && !this.hasJSDoc((exportItem as any).jsDoc)) {
+      const jsDoc = 'jsDoc' in exportItem ? exportItem.jsDoc : undefined;
+      if (!typeInfo?.description && !this.hasJSDoc(jsDoc)) {
         warnings.push({
           type: 'undocumented',
           exportName: exportItem.name,
@@ -134,9 +140,9 @@ export class TypeValidator {
       : 0;
     const documentedCount = allExports.filter(
       (e) =>
-        (e as any).description ||
-        this.hasJSDoc((e as any).jsDoc) ||
-        (typeDefInfo && typeDefInfo.exports.find((t) => t.name === e.name)?.description),
+        this.hasDescription(e) ||
+        this.hasJSDoc('jsDoc' in e ? e.jsDoc : undefined) ||
+        (typeDefInfo && typeDefInfo.exports.find((t) => t.name === e.name)?.description)
     ).length;
     const deprecatedCount = typeDefInfo
       ? typeDefInfo.exports.filter((e) => e.deprecated).length
@@ -148,9 +154,7 @@ export class TypeValidator {
       untypedExports: allExports.length - typedCount,
       deprecatedExports: deprecatedCount,
       documentationCoverage:
-        allExports.length > 0
-          ? Math.round((documentedCount / allExports.length) * 100)
-          : 0,
+        allExports.length > 0 ? Math.round((documentedCount / allExports.length) * 100) : 0,
     };
 
     const isValid = errors.filter((e) => e.severity === 'error').length === 0;
@@ -167,7 +171,7 @@ export class TypeValidator {
    * Map LibraryExportType to TypeScript kind
    */
   private mapExportTypeToKind(
-    exportType: string,
+    exportType: LibraryExports['namedExports'][number]['type'] | 'default'
   ): string | undefined {
     switch (exportType) {
       case 'function':
@@ -178,6 +182,8 @@ export class TypeValidator {
         return 'const';
       case 'type':
         return 'type';
+      case 'default':
+        return undefined;
       case 'named':
         return undefined; // Generic, could be anything
       default:

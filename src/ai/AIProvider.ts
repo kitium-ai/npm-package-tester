@@ -9,7 +9,30 @@ import {
   CLIExample,
   LibraryTestScenario,
   LibraryExports,
-} from '../domain/models/types';
+} from 'domain/models/types';
+
+/* eslint-disable @typescript-eslint/naming-convention */
+
+type AnthropicMessage = { text?: string };
+type AnthropicResponse = { content?: AnthropicMessage[] };
+
+type OpenAIChatChoice = { message: { content: string } };
+type OpenAIChatResponse = { choices: OpenAIChatChoice[] };
+
+type GoogleCandidate = { content?: { parts?: Array<{ text?: string }> } };
+type GoogleResponse = { candidates?: GoogleCandidate[] };
+
+type GroqResponse = OpenAIChatResponse;
+
+type ParsedScenario = {
+  name: string;
+  description?: string;
+  importStatement?: string;
+  testCode?: string;
+  expectedOutput?: string | RegExp | null;
+  expectError?: boolean;
+  args?: string[];
+};
 
 export interface AIProviderClient {
   generateScenarios(
@@ -18,7 +41,7 @@ export interface AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): Promise<TestScenario[]>;
 
   generateLibraryScenarios(
@@ -26,7 +49,7 @@ export interface AIProviderClient {
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): Promise<LibraryTestScenario[]>;
 }
 
@@ -77,7 +100,7 @@ class AnthropicProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): Promise<TestScenario[]> {
     const prompt = this.buildPrompt(
       packageName,
@@ -85,7 +108,7 @@ class AnthropicProvider implements AIProviderClient {
       readme,
       cliHelp,
       commands,
-      examples,
+      examples
     );
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -112,8 +135,8 @@ class AnthropicProvider implements AIProviderClient {
       throw new Error(`Anthropic API error: ${response.statusText} - ${errorBody}`);
     }
 
-    const data = (await response.json()) as any;
-    const content = data.content[0].text;
+    const data = (await response.json()) as AnthropicResponse;
+    const content = data.content?.[0]?.text ?? '';
 
     return this.parseScenarios(content);
   }
@@ -123,14 +146,14 @@ class AnthropicProvider implements AIProviderClient {
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): Promise<LibraryTestScenario[]> {
     const prompt = this.buildLibraryPrompt(
       packageName,
       packageDescription,
       readme,
       libraryExports,
-      examples,
+      examples
     );
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -157,8 +180,8 @@ class AnthropicProvider implements AIProviderClient {
       throw new Error(`Anthropic API error: ${response.statusText} - ${errorBody}`);
     }
 
-    const data = (await response.json()) as any;
-    const content = data.content[0].text;
+    const data = (await response.json()) as AnthropicResponse;
+    const content = data.content?.[0]?.text ?? '';
 
     return this.parseLibraryScenarios(content);
   }
@@ -169,7 +192,7 @@ class AnthropicProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): string {
     const examplesSection =
       examples && examples.length > 0
@@ -234,8 +257,9 @@ Return ONLY the JSON array, no additional text.`;
     const jsonStr = jsonMatch ? jsonMatch[1] : content;
 
     try {
-      const scenarios = JSON.parse(jsonStr);
-      return Array.isArray(scenarios) ? scenarios : [scenarios];
+      const parsed = JSON.parse(jsonStr) as { scenarios?: TestScenario[] } | TestScenario[];
+      const scenarios = Array.isArray(parsed) ? parsed : parsed.scenarios || [];
+      return scenarios;
     } catch (error) {
       throw new Error(`Failed to parse AI response: ${(error as Error).message}`);
     }
@@ -246,10 +270,10 @@ Return ONLY the JSON array, no additional text.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): string {
     const functionExports = libraryExports.namedExports.filter(
-      (e) => e.type === 'function' || e.type === 'constant',
+      (e) => e.type === 'function' || e.type === 'constant'
     );
     const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
 
@@ -350,16 +374,24 @@ Generate 4-6 comprehensive test scenarios now:`;
     const jsonStr = jsonMatch ? jsonMatch[1] : content;
 
     try {
-      const data = JSON.parse(jsonStr);
-      const scenarios = Array.isArray(data) ? data : data.scenarios || [data];
-      return scenarios.map((s: any) => ({
-        name: s.name,
-        description: s.description,
-        importStatement: s.importStatement,
-        testCode: s.testCode,
-        expectedOutput: s.expectedOutput,
-        expectError: s.expectError === true,
-      }));
+      const data = JSON.parse(jsonStr) as { scenarios?: ParsedScenario[] } | ParsedScenario[];
+      const scenarios = Array.isArray(data) ? data : data.scenarios || [];
+      return scenarios.map((scenario) => {
+        const base: Omit<LibraryTestScenario, 'description' | 'expectedOutput'> = {
+          name: scenario.name,
+          importStatement: scenario.importStatement ?? '',
+          testCode: scenario.testCode ?? '',
+          expectError: scenario.expectError === true,
+        };
+        const result: Record<string, unknown> = base;
+        if (scenario.description !== undefined) {
+          result['description'] = scenario.description;
+        }
+        if (scenario.expectedOutput !== undefined && scenario.expectedOutput !== null) {
+          result['expectedOutput'] = scenario.expectedOutput;
+        }
+        return result as unknown as LibraryTestScenario;
+      });
     } catch (error) {
       throw new Error(`Failed to parse library scenarios: ${(error as Error).message}`);
     }
@@ -381,7 +413,7 @@ class OpenAIProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): Promise<TestScenario[]> {
     const prompt = this.buildPrompt(
       packageName,
@@ -389,7 +421,7 @@ class OpenAIProvider implements AIProviderClient {
       readme,
       cliHelp,
       commands,
-      examples,
+      examples
     );
 
     const baseUrl = this.config.baseUrl || 'https://api.openai.com/v1';
@@ -416,8 +448,8 @@ class OpenAIProvider implements AIProviderClient {
       throw new Error(`OpenAI API error: ${response.statusText} - ${errorBody}`);
     }
 
-    const data = (await response.json()) as any;
-    const content = data.choices[0].message.content;
+    const data = (await response.json()) as OpenAIChatResponse;
+    const content = data.choices?.[0]?.message.content ?? '';
 
     return this.parseScenarios(content);
   }
@@ -428,7 +460,7 @@ class OpenAIProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): string {
     const examplesSection =
       examples && examples.length > 0
@@ -450,8 +482,9 @@ Return a JSON object with a "scenarios" array containing 2-4 test scenarios.`;
   }
 
   private parseScenarios(content: string): TestScenario[] {
-    const data = JSON.parse(content);
-    return data.scenarios || data;
+    const parsed = JSON.parse(content) as { scenarios?: TestScenario[] } | TestScenario[];
+    const scenarios = Array.isArray(parsed) ? parsed : parsed.scenarios || [];
+    return scenarios;
   }
 
   async generateLibraryScenarios(
@@ -459,14 +492,14 @@ Return a JSON object with a "scenarios" array containing 2-4 test scenarios.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): Promise<LibraryTestScenario[]> {
     const prompt = this.buildLibraryPrompt(
       packageName,
       packageDescription,
       readme,
       libraryExports,
-      examples,
+      examples
     );
 
     const baseUrl = this.config.baseUrl || 'https://api.openai.com/v1';
@@ -493,8 +526,8 @@ Return a JSON object with a "scenarios" array containing 2-4 test scenarios.`;
       throw new Error(`OpenAI API error: ${response.statusText} - ${errorBody}`);
     }
 
-    const data = (await response.json()) as any;
-    const content = data.choices[0].message.content;
+    const data = (await response.json()) as OpenAIChatResponse;
+    const content = data.choices?.[0]?.message.content ?? '';
 
     return this.parseLibraryScenarios(content);
   }
@@ -504,10 +537,10 @@ Return a JSON object with a "scenarios" array containing 2-4 test scenarios.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    _examples?: readonly CLIExample[],
+    _examples?: readonly CLIExample[]
   ): string {
     const functionExports = libraryExports.namedExports.filter(
-      (e) => e.type === 'function' || e.type === 'constant',
+      (e) => e.type === 'function' || e.type === 'constant'
     );
     const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
 
@@ -527,16 +560,24 @@ Return JSON with "scenarios" array. Each scenario has: name, description, import
   }
 
   private parseLibraryScenarios(content: string): LibraryTestScenario[] {
-    const data = JSON.parse(content);
-    const scenarios = Array.isArray(data) ? data : data.scenarios || [data];
-    return scenarios.map((s: any) => ({
-      name: s.name,
-      description: s.description,
-      importStatement: s.importStatement,
-      testCode: s.testCode,
-      expectedOutput: s.expectedOutput,
-      expectError: s.expectError === true,
-    }));
+    const data = JSON.parse(content) as { scenarios?: ParsedScenario[] } | ParsedScenario[];
+    const scenarios = Array.isArray(data) ? data : data.scenarios || [];
+    return scenarios.map((scenario) => {
+      const base: Omit<LibraryTestScenario, 'description' | 'expectedOutput'> = {
+        name: scenario.name,
+        importStatement: scenario.importStatement ?? '',
+        testCode: scenario.testCode ?? '',
+        expectError: scenario.expectError === true,
+      };
+      const result: Record<string, unknown> = base;
+      if (scenario.description !== undefined) {
+        result['description'] = scenario.description;
+      }
+      if (scenario.expectedOutput !== undefined && scenario.expectedOutput !== null) {
+        result['expectedOutput'] = scenario.expectedOutput;
+      }
+      return result as unknown as LibraryTestScenario;
+    });
   }
 }
 
@@ -555,7 +596,7 @@ class GoogleProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): Promise<TestScenario[]> {
     const prompt = this.buildPrompt(
       packageName,
@@ -563,7 +604,7 @@ class GoogleProvider implements AIProviderClient {
       readme,
       cliHelp,
       commands,
-      examples,
+      examples
     );
 
     const baseUrl =
@@ -586,15 +627,15 @@ class GoogleProvider implements AIProviderClient {
             },
           ],
         }),
-      },
+      }
     );
 
     if (!response.ok) {
       throw new Error(`Google API error: ${response.statusText}`);
     }
 
-    const data = (await response.json()) as any;
-    const content = data.candidates[0].content.parts[0].text;
+    const data = (await response.json()) as GoogleResponse;
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
     return this.parseScenarios(content);
   }
@@ -605,7 +646,7 @@ class GoogleProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): string {
     const examplesSection =
       examples && examples.length > 0
@@ -667,8 +708,8 @@ Return ONLY the JSON array, no additional text.`;
   private parseScenarios(content: string): TestScenario[] {
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     const jsonStr = jsonMatch ? jsonMatch[1] : content;
-    const scenarios = JSON.parse(jsonStr);
-    return Array.isArray(scenarios) ? scenarios : [scenarios];
+    const scenarios = JSON.parse(jsonStr) as TestScenario[] | { scenarios?: TestScenario[] };
+    return Array.isArray(scenarios) ? scenarios : scenarios.scenarios || [];
   }
 
   async generateLibraryScenarios(
@@ -676,14 +717,14 @@ Return ONLY the JSON array, no additional text.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): Promise<LibraryTestScenario[]> {
     const prompt = this.buildLibraryPrompt(
       packageName,
       packageDescription,
       readme,
       libraryExports,
-      examples,
+      examples
     );
 
     const baseUrl =
@@ -706,15 +747,15 @@ Return ONLY the JSON array, no additional text.`;
             },
           ],
         }),
-      },
+      }
     );
 
     if (!response.ok) {
       throw new Error(`Google API error: ${response.statusText}`);
     }
 
-    const data = (await response.json()) as any;
-    const content = data.candidates[0].content.parts[0].text;
+    const data = (await response.json()) as GoogleResponse;
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
     return this.parseLibraryScenarios(content);
   }
@@ -724,10 +765,10 @@ Return ONLY the JSON array, no additional text.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    _examples?: readonly CLIExample[],
+    _examples?: readonly CLIExample[]
   ): string {
     const functionExports = libraryExports.namedExports.filter(
-      (e) => e.type === 'function' || e.type === 'constant',
+      (e) => e.type === 'function' || e.type === 'constant'
     );
     const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
 
@@ -749,16 +790,24 @@ Include core functionality, error handling, edge cases, and async patterns if ap
   private parseLibraryScenarios(content: string): LibraryTestScenario[] {
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     const jsonStr = jsonMatch ? jsonMatch[1] : content;
-    const data = JSON.parse(jsonStr);
-    const scenarios = Array.isArray(data) ? data : data.scenarios || [data];
-    return scenarios.map((s: any) => ({
-      name: s.name,
-      description: s.description,
-      importStatement: s.importStatement,
-      testCode: s.testCode,
-      expectedOutput: s.expectedOutput,
-      expectError: s.expectError === true,
-    }));
+    const data = JSON.parse(jsonStr) as { scenarios?: ParsedScenario[] } | ParsedScenario[];
+    const scenarios = Array.isArray(data) ? data : data.scenarios || [];
+    return scenarios.map((scenario) => {
+      const base: Omit<LibraryTestScenario, 'description' | 'expectedOutput'> = {
+        name: scenario.name,
+        importStatement: scenario.importStatement ?? '',
+        testCode: scenario.testCode ?? '',
+        expectError: scenario.expectError === true,
+      };
+      const result: Record<string, unknown> = base;
+      if (scenario.description !== undefined) {
+        result['description'] = scenario.description;
+      }
+      if (scenario.expectedOutput !== undefined && scenario.expectedOutput !== null) {
+        result['expectedOutput'] = scenario.expectedOutput;
+      }
+      return result as unknown as LibraryTestScenario;
+    });
   }
 }
 
@@ -777,7 +826,7 @@ class GroqProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): Promise<TestScenario[]> {
     const prompt = this.buildPrompt(
       packageName,
@@ -785,7 +834,7 @@ class GroqProvider implements AIProviderClient {
       readme,
       cliHelp,
       commands,
-      examples,
+      examples
     );
 
     const baseUrl = this.config.baseUrl || 'https://api.groq.com/openai/v1';
@@ -810,8 +859,8 @@ class GroqProvider implements AIProviderClient {
       throw new Error(`Groq API error: ${response.statusText}`);
     }
 
-    const data = (await response.json()) as any;
-    const content = data.choices[0].message.content;
+    const data = (await response.json()) as GroqResponse;
+    const content = data.choices?.[0]?.message.content ?? '';
 
     return this.parseScenarios(content);
   }
@@ -822,7 +871,7 @@ class GroqProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): string {
     const examplesSection =
       examples && examples.length > 0
@@ -884,8 +933,8 @@ Return ONLY the JSON array, no additional text.`;
   private parseScenarios(content: string): TestScenario[] {
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     const jsonStr = jsonMatch ? jsonMatch[1] : content;
-    const scenarios = JSON.parse(jsonStr);
-    return Array.isArray(scenarios) ? scenarios : [scenarios];
+    const scenarios = JSON.parse(jsonStr) as TestScenario[] | { scenarios?: TestScenario[] };
+    return Array.isArray(scenarios) ? scenarios : scenarios.scenarios || [];
   }
 
   async generateLibraryScenarios(
@@ -893,14 +942,14 @@ Return ONLY the JSON array, no additional text.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): Promise<LibraryTestScenario[]> {
     const prompt = this.buildLibraryPrompt(
       packageName,
       packageDescription,
       readme,
       libraryExports,
-      examples,
+      examples
     );
 
     const baseUrl = this.config.baseUrl || 'https://api.groq.com/openai/v1';
@@ -925,8 +974,8 @@ Return ONLY the JSON array, no additional text.`;
       throw new Error(`Groq API error: ${response.statusText}`);
     }
 
-    const data = (await response.json()) as any;
-    const content = data.choices[0].message.content;
+    const data = (await response.json()) as GroqResponse;
+    const content = data.choices?.[0]?.message.content ?? '';
 
     return this.parseLibraryScenarios(content);
   }
@@ -936,10 +985,10 @@ Return ONLY the JSON array, no additional text.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    _examples?: readonly CLIExample[],
+    _examples?: readonly CLIExample[]
   ): string {
     const functionExports = libraryExports.namedExports.filter(
-      (e) => e.type === 'function' || e.type === 'constant',
+      (e) => e.type === 'function' || e.type === 'constant'
     );
     const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
 
@@ -961,15 +1010,23 @@ Return JSON array with name, description, importStatement, testCode (runnable No
   private parseLibraryScenarios(content: string): LibraryTestScenario[] {
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     const jsonStr = jsonMatch ? jsonMatch[1] : content;
-    const data = JSON.parse(jsonStr);
-    const scenarios = Array.isArray(data) ? data : data.scenarios || [data];
-    return scenarios.map((s: any) => ({
-      name: s.name,
-      description: s.description,
-      importStatement: s.importStatement,
-      testCode: s.testCode,
-      expectedOutput: s.expectedOutput,
-      expectError: s.expectError === true,
-    }));
+    const data = JSON.parse(jsonStr) as { scenarios?: ParsedScenario[] } | ParsedScenario[];
+    const scenarios = Array.isArray(data) ? data : data.scenarios || [];
+    return scenarios.map((scenario) => {
+      const base: Omit<LibraryTestScenario, 'description' | 'expectedOutput'> = {
+        name: scenario.name,
+        importStatement: scenario.importStatement ?? '',
+        testCode: scenario.testCode ?? '',
+        expectError: scenario.expectError === true,
+      };
+      const result: Record<string, unknown> = base;
+      if (scenario.description !== undefined) {
+        result['description'] = scenario.description;
+      }
+      if (scenario.expectedOutput !== undefined && scenario.expectedOutput !== null) {
+        result['expectedOutput'] = scenario.expectedOutput;
+      }
+      return result as unknown as LibraryTestScenario;
+    });
   }
 }
