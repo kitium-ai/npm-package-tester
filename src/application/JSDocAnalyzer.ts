@@ -77,12 +77,12 @@ export class JSDocAnalyzer {
       averageCompleteness:
         exportAnalyses.length > 0
           ? Math.round(
-              exportAnalyses.reduce((sum, e) => sum + e.completeness, 0) / exportAnalyses.length,
+              exportAnalyses.reduce((sum, e) => sum + e.completeness, 0) / exportAnalyses.length
             )
           : 0,
       criticalIssues: exportAnalyses.reduce(
         (sum, e) => sum + e.issues.filter((i) => i.severity === 'error').length,
-        0,
+        0
       ),
     };
 

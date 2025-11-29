@@ -91,7 +91,7 @@ export class LibraryExportDetector {
    */
   private async analyzeExports(
     packagePath: string,
-    packageJson: PackageJson,
+    packageJson: PackageJson
   ): Promise<LibraryExports> {
     const entryPoint = this.resolveEntryPoint(packagePath, packageJson);
     const exportFormat = this.detectExportFormat(packageJson);
@@ -224,7 +224,7 @@ export class LibraryExportDetector {
    */
   private async extractNamedExports(
     packagePath: string,
-    entryPoint: string,
+    entryPoint: string
   ): Promise<LibraryExport[]> {
     const exports: LibraryExport[] = [];
 
@@ -249,7 +249,7 @@ export class LibraryExportDetector {
 
       // Extract CommonJS: module.exports = { ... }
       const commonjsMatch = content.match(
-        /module\.exports\s*=\s*\{([^}]*)\}|\bexports\.(\w+)\s*=/g,
+        /module\.exports\s*=\s*\{([^}]*)\}|\bexports\.(\w+)\s*=/g
       );
       if (commonjsMatch) {
         commonjsMatch.forEach((match) => {

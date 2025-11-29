@@ -33,7 +33,7 @@ export class DockerManager {
   async createTestContainer(
     environment: TestEnvironment,
     packageName: string,
-    onProgress?: (event: ProgressEvent) => void,
+    onProgress?: (event: ProgressEvent) => void
   ): Promise<ContainerState> {
     // Pull image
     if (onProgress) {
@@ -87,7 +87,7 @@ export class DockerManager {
   async configureNpmAuth(
     containerId: string,
     npmToken?: string,
-    npmRegistry?: string,
+    npmRegistry?: string
   ): Promise<void> {
     if (!npmToken && !npmRegistry) {
       return; // No authentication needed
@@ -121,7 +121,7 @@ export class DockerManager {
     packageName: string,
     onProgress?: (event: ProgressEvent) => void,
     npmToken?: string,
-    npmRegistry?: string,
+    npmRegistry?: string
   ): Promise<void> {
     if (onProgress) {
       onProgress({
@@ -141,7 +141,7 @@ export class DockerManager {
    */
   async executeCommand(
     containerId: string,
-    command: string[],
+    command: string[]
   ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     const container = this.docker.getContainer(containerId);
 
@@ -242,7 +242,7 @@ export class DockerManager {
           },
           () => {
             // Progress callback - ignore for now
-          },
+          }
         );
       });
     });

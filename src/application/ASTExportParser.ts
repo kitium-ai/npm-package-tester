@@ -226,7 +226,7 @@ export class ASTExportParser {
       | t.FunctionExpression
       | t.ArrowFunctionExpression
       | t.ObjectMethod
-      | t.ClassMethod,
+      | t.ClassMethod
   ): string {
     try {
       const params = func.params

@@ -28,7 +28,7 @@ export class ScenarioRunner {
     scenario: TestScenario,
     nodeVersion: string,
     command: CLICommand,
-    onProgress?: (event: ProgressEvent) => void,
+    onProgress?: (event: ProgressEvent) => void
   ): Promise<CommandTestResult> {
     const startTime = Date.now();
 
@@ -143,7 +143,7 @@ export class ScenarioRunner {
   private async validateScenario(
     containerId: string,
     scenario: TestScenario,
-    result: { exitCode: number; stdout: string; stderr: string },
+    result: { exitCode: number; stdout: string; stderr: string }
   ): Promise<{ passed: boolean; error?: string }> {
     const validation = scenario.validate;
     const errors: string[] = [];
