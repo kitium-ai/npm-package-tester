@@ -173,8 +173,9 @@ program
     logger.info('Analyzing package...');
 
     try {
-      const { PackageAnalyzer: packageAnalyzerClass } =
-        await import('../application/PackageAnalyzer');
+      const { PackageAnalyzer: packageAnalyzerClass } = await import(
+        '../application/PackageAnalyzer'
+      );
       const analyzer = new packageAnalyzerClass();
 
       const packageInfo = await analyzer.analyze(packageSource);
