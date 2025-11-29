@@ -54,6 +54,12 @@ interface CliOptions {
   verbose?: boolean;
   help?: boolean;
   version?: boolean;
+  baseImage?: string;
+  allowedRegistry?: string;
+  complianceArtifacts?: string;
+  audit?: boolean;
+  sbom?: boolean;
+  licenseCheck?: boolean;
 }
 
 program
@@ -75,6 +81,12 @@ program
   .option('--ai-provider <provider>', 'AI provider (anthropic, openai, google, groq)')
   .option('--ai-token <token>', 'AI API token/key')
   .option('--ai-model <model>', 'AI model name (optional, auto-detects best)')
+  .option('--base-image <image>', 'Custom base Docker image to use for tests')
+  .option('--allowed-registry <url>', 'Enforce a single allowed registry')
+  .option('--compliance-artifacts <dir>', 'Directory to persist compliance artifacts inside container')
+  .option('--no-audit', 'Disable vulnerability scan')
+  .option('--no-sbom', 'Disable SBOM generation')
+  .option('--no-license-check', 'Disable license checks')
   .option('-v, --verbose', 'Verbose output')
   .action(async (packageSource: string, options: CliOptions) => {
     logger.info('Starting tests...');
@@ -104,6 +116,17 @@ program
         ai: aiConfig,
         npmToken: options.npmToken,
         npmRegistry: options.npmRegistry,
+        baseImage: options.baseImage,
+        compliance: {
+          enabled: true,
+          sbom: options.sbom ?? true,
+          audit: options.audit ?? true,
+          licenseCheck: options.licenseCheck ?? true,
+          artifactDir: options.complianceArtifacts,
+        },
+        policy: {
+          allowedRegistries: options.allowedRegistry ? [options.allowedRegistry] : undefined,
+        },
       };
 
       const result = await testRunner.testPackage(packageSource, config, (event) => {

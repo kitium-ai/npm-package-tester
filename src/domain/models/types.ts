@@ -234,6 +234,42 @@ export interface TestConfig {
   readonly npmToken?: string;
   /** Custom npm registry URL */
   readonly npmRegistry?: string;
+  /** Optional compliance and governance controls */
+  readonly compliance?: ComplianceConfig;
+  /** Optional policy enforcement gates */
+  readonly policy?: PolicyConfig;
+  /** Override base Docker image */
+  readonly baseImage?: string;
+}
+
+/**
+ * Compliance and security configuration
+ */
+export interface ComplianceConfig {
+  /** Enable compliance checks */
+  readonly enabled?: boolean;
+  /** Generate SBOM */
+  readonly sbom?: boolean;
+  /** Run vulnerability scan */
+  readonly audit?: boolean;
+  /** Run lightweight license check */
+  readonly licenseCheck?: boolean;
+  /** Path to persist compliance artifacts */
+  readonly artifactDir?: string;
+}
+
+/**
+ * Policy enforcement configuration
+ */
+export interface PolicyConfig {
+  /** Allowed registries */
+  readonly allowedRegistries?: readonly string[];
+  /** Allowed Node versions */
+  readonly allowedNodeVersions?: readonly string[];
+  /** Require offline/blocked network */
+  readonly enforceOffline?: boolean;
+  /** Allowed Docker base images */
+  readonly allowedBaseImages?: readonly string[];
 }
 
 /**
@@ -448,6 +484,91 @@ export interface PackageTestSummary {
   readonly libraryResults?: readonly LibraryTestResult[];
   /** Type validation results (if library package) */
   readonly typeValidation?: TypeValidationReport;
+  /** Compliance and security posture for the run */
+  readonly compliance?: ComplianceReport;
+  /** Policy evaluation */
+  readonly policy?: PolicyReport;
+}
+
+/**
+ * Compliance report
+ */
+export interface ComplianceReport {
+  /** SBOM contents */
+  readonly sbom?: SBOMReport;
+  /** Vulnerability report */
+  readonly vulnerabilities?: VulnerabilityReport;
+  /** License findings */
+  readonly licenses?: LicenseReport;
+}
+
+/**
+ * SBOM report (lightweight)
+ */
+export interface SBOMReport {
+  /** Package name */
+  readonly packageName: string;
+  /** When generated */
+  readonly generatedAt: string;
+  /** Components */
+  readonly components: readonly SBOMComponent[];
+}
+
+export interface SBOMComponent {
+  /** Dependency name */
+  readonly name: string;
+  /** Version */
+  readonly version: string;
+  /** Resolved from */
+  readonly path?: string;
+}
+
+export interface VulnerabilityReport {
+  /** Vulnerability findings */
+  readonly findings: readonly SecurityFinding[];
+  /** Raw report */
+  readonly raw?: unknown;
+}
+
+export interface SecurityFinding {
+  /** Title */
+  readonly title: string;
+  /** Severity */
+  readonly severity: 'critical' | 'high' | 'medium' | 'low' | 'unknown';
+  /** Dependency */
+  readonly dependency: string;
+  /** Via/identifier */
+  readonly via?: string;
+  /** Advisory URL */
+  readonly url?: string;
+}
+
+export interface LicenseReport {
+  /** License issues */
+  readonly issues: readonly LicenseIssue[];
+}
+
+export interface LicenseIssue {
+  /** Dependency */
+  readonly dependency: string;
+  /** License */
+  readonly license: string;
+  /** Message */
+  readonly message: string;
+}
+
+export interface PolicyReport {
+  /** Whether all policies passed */
+  readonly passed: boolean;
+  /** Violations */
+  readonly violations: readonly PolicyViolation[];
+}
+
+export interface PolicyViolation {
+  /** Rule violated */
+  readonly rule: string;
+  /** Description */
+  readonly message: string;
 }
 
 /**

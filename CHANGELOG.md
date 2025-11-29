@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Policy gates for allowed registries, Node versions, and base images.
+- Compliance manager generating SBOMs, vulnerability scans, and license summaries (with artifact persistence).
+- CLI flags to control compliance/policy features and base image selection.
+- Result formatter now surfaces compliance and policy outcomes.
+
 ## [2.0.0] - 2025-11-21
 
 ### 🎉 Major Release: Library Testing & Type Validation
