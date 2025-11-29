@@ -4,6 +4,7 @@
   "description": "AI-powered CLI testing tool for npm packages with Docker isolation, private package support, and automated test generation using Claude, GPT-4, Gemini",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
   "bin": {
     "npm-package-tester": "dist/cli/index.js",
     "npt": "dist/cli/index.js"
@@ -103,15 +104,15 @@
     "ora": "^8.0.1",
     "semver": "^7.5.4",
     "typescript": "^5.6.0",
-    "@kitiumai/logger": "1.5.0",
-    "@kitiumai/types": "^1.0.0",
-    "@kitiumai/utils-ts": "^1.0.0"
+    "@kitiumai/logger": "^2.0.0",
+    "@kitiumai/types": "^2.0.0",
+    "@kitiumai/utils-ts": "^2.0.1"
   },
   "devDependencies": {
-    "@kitiumai/config": "^1.0.2",
-    "@kitiumai/lint": "^1.3.5",
-    "@kitiumai/scripts": "^0.2.1",
-    "@kitiumai/vitest-helpers": "^1.0.2",
+    "@kitiumai/config": "^2.0.0",
+    "@kitiumai/lint": "^2.0.0",
+    "@kitiumai/scripts": "^1.0.0",
+    "@kitiumai/vitest-helpers": "^2.0.0",
     "@types/dockerode": "^3.3.23",
     "@types/node": "^24.10.1",
     "@types/semver": "^7.5.6",

@@ -6,7 +6,6 @@
 import * as fs from 'fs';
 import * as parser from '@babel/parser';
 import traverse, { NodePath } from '@babel/traverse';
-// @ts-expect-error - @babel/types types not available in current setup
 import * as t from '@babel/types';
 import { LibraryExport, LibraryExportType, ClassMethod, TypeProperty } from 'domain/models/types';
 
@@ -227,7 +226,7 @@ export class ASTExportParser {
       | t.FunctionExpression
       | t.ArrowFunctionExpression
       | t.ObjectMethod
-      | t.ClassMethod
+      | t.ClassMethod,
   ): string {
     try {
       const params = func.params

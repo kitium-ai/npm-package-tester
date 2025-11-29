@@ -142,7 +142,7 @@ export class TypeValidator {
       (e) =>
         this.hasDescription(e) ||
         this.hasJSDoc('jsDoc' in e ? e.jsDoc : undefined) ||
-        (typeDefInfo && typeDefInfo.exports.find((t) => t.name === e.name)?.description)
+        (typeDefInfo && typeDefInfo.exports.find((t) => t.name === e.name)?.description),
     ).length;
     const deprecatedCount = typeDefInfo
       ? typeDefInfo.exports.filter((e) => e.deprecated).length
@@ -171,7 +171,7 @@ export class TypeValidator {
    * Map LibraryExportType to TypeScript kind
    */
   private mapExportTypeToKind(
-    exportType: LibraryExports['namedExports'][number]['type'] | 'default'
+    exportType: LibraryExports['namedExports'][number]['type'] | 'default',
   ): string | undefined {
     switch (exportType) {
       case 'function':

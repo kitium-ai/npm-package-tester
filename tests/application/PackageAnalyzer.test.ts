@@ -8,7 +8,7 @@ import { CommandType, PackageInfo } from 'domain/models/types';
 
 type PackageAnalyzerInternals = {
   extractCommands: (
-    pkg: Record<string, unknown>
+    pkg: Record<string, unknown>,
   ) => { name: string; path: string; type: CommandType }[];
   determineCommandType: (commandName: string, packageName: string, isFirst: boolean) => CommandType;
   extractPackageInfo: (pkg: Record<string, unknown>) => PackageInfo;
@@ -82,7 +82,7 @@ describe('PackageAnalyzer', () => {
       const result = analyzerWithInternals.determineCommandType(
         'cycfix',
         'cyclic-dependency-fixer',
-        false
+        false,
       );
       expect(result).toBe(CommandType.ALIAS);
     });

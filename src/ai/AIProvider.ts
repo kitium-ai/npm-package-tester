@@ -41,7 +41,7 @@ export interface AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): Promise<TestScenario[]>;
 
   generateLibraryScenarios(
@@ -49,7 +49,7 @@ export interface AIProviderClient {
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): Promise<LibraryTestScenario[]>;
 }
 
@@ -100,7 +100,7 @@ class AnthropicProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): Promise<TestScenario[]> {
     const prompt = this.buildPrompt(
       packageName,
@@ -108,7 +108,7 @@ class AnthropicProvider implements AIProviderClient {
       readme,
       cliHelp,
       commands,
-      examples
+      examples,
     );
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -146,14 +146,14 @@ class AnthropicProvider implements AIProviderClient {
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): Promise<LibraryTestScenario[]> {
     const prompt = this.buildLibraryPrompt(
       packageName,
       packageDescription,
       readme,
       libraryExports,
-      examples
+      examples,
     );
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -192,7 +192,7 @@ class AnthropicProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): string {
     const examplesSection =
       examples && examples.length > 0
@@ -270,10 +270,10 @@ Return ONLY the JSON array, no additional text.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): string {
     const functionExports = libraryExports.namedExports.filter(
-      (e) => e.type === 'function' || e.type === 'constant'
+      (e) => e.type === 'function' || e.type === 'constant',
     );
     const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
 
@@ -413,7 +413,7 @@ class OpenAIProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): Promise<TestScenario[]> {
     const prompt = this.buildPrompt(
       packageName,
@@ -421,7 +421,7 @@ class OpenAIProvider implements AIProviderClient {
       readme,
       cliHelp,
       commands,
-      examples
+      examples,
     );
 
     const baseUrl = this.config.baseUrl || 'https://api.openai.com/v1';
@@ -460,7 +460,7 @@ class OpenAIProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): string {
     const examplesSection =
       examples && examples.length > 0
@@ -492,14 +492,14 @@ Return a JSON object with a "scenarios" array containing 2-4 test scenarios.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): Promise<LibraryTestScenario[]> {
     const prompt = this.buildLibraryPrompt(
       packageName,
       packageDescription,
       readme,
       libraryExports,
-      examples
+      examples,
     );
 
     const baseUrl = this.config.baseUrl || 'https://api.openai.com/v1';
@@ -537,10 +537,10 @@ Return a JSON object with a "scenarios" array containing 2-4 test scenarios.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    _examples?: readonly CLIExample[]
+    _examples?: readonly CLIExample[],
   ): string {
     const functionExports = libraryExports.namedExports.filter(
-      (e) => e.type === 'function' || e.type === 'constant'
+      (e) => e.type === 'function' || e.type === 'constant',
     );
     const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
 
@@ -596,7 +596,7 @@ class GoogleProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): Promise<TestScenario[]> {
     const prompt = this.buildPrompt(
       packageName,
@@ -604,7 +604,7 @@ class GoogleProvider implements AIProviderClient {
       readme,
       cliHelp,
       commands,
-      examples
+      examples,
     );
 
     const baseUrl =
@@ -627,7 +627,7 @@ class GoogleProvider implements AIProviderClient {
             },
           ],
         }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -646,7 +646,7 @@ class GoogleProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): string {
     const examplesSection =
       examples && examples.length > 0
@@ -717,14 +717,14 @@ Return ONLY the JSON array, no additional text.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): Promise<LibraryTestScenario[]> {
     const prompt = this.buildLibraryPrompt(
       packageName,
       packageDescription,
       readme,
       libraryExports,
-      examples
+      examples,
     );
 
     const baseUrl =
@@ -747,7 +747,7 @@ Return ONLY the JSON array, no additional text.`;
             },
           ],
         }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -765,10 +765,10 @@ Return ONLY the JSON array, no additional text.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    _examples?: readonly CLIExample[]
+    _examples?: readonly CLIExample[],
   ): string {
     const functionExports = libraryExports.namedExports.filter(
-      (e) => e.type === 'function' || e.type === 'constant'
+      (e) => e.type === 'function' || e.type === 'constant',
     );
     const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
 
@@ -826,7 +826,7 @@ class GroqProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): Promise<TestScenario[]> {
     const prompt = this.buildPrompt(
       packageName,
@@ -834,7 +834,7 @@ class GroqProvider implements AIProviderClient {
       readme,
       cliHelp,
       commands,
-      examples
+      examples,
     );
 
     const baseUrl = this.config.baseUrl || 'https://api.groq.com/openai/v1';
@@ -871,7 +871,7 @@ class GroqProvider implements AIProviderClient {
     readme: string,
     cliHelp: string,
     commands: string[],
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): string {
     const examplesSection =
       examples && examples.length > 0
@@ -942,14 +942,14 @@ Return ONLY the JSON array, no additional text.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[]
+    examples?: readonly CLIExample[],
   ): Promise<LibraryTestScenario[]> {
     const prompt = this.buildLibraryPrompt(
       packageName,
       packageDescription,
       readme,
       libraryExports,
-      examples
+      examples,
     );
 
     const baseUrl = this.config.baseUrl || 'https://api.groq.com/openai/v1';
@@ -985,10 +985,10 @@ Return ONLY the JSON array, no additional text.`;
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    _examples?: readonly CLIExample[]
+    _examples?: readonly CLIExample[],
   ): string {
     const functionExports = libraryExports.namedExports.filter(
-      (e) => e.type === 'function' || e.type === 'constant'
+      (e) => e.type === 'function' || e.type === 'constant',
     );
     const classExports = libraryExports.namedExports.filter((e) => e.type === 'class');
 

@@ -5,10 +5,38 @@
  */
 
 import { Command } from 'commander';
-import { getLogger } from '@kitiumai/logger';
+import { getLogger, initializeLogger, LogLevel } from '@kitiumai/logger';
 import { TestRunner } from 'application/TestRunner';
 import { ResultFormatter } from 'formatters/ResultFormatter';
 import { TestConfig } from 'domain/models/types';
+
+// Initialize logger with minimal config
+initializeLogger({
+  serviceName: 'npm-package-tester',
+  environment:
+    (process.env['NODE_ENV'] as 'development' | 'staging' | 'production') ?? 'development',
+  logLevel: (process.env['NPT_LOG_LEVEL'] as LogLevel | undefined) ?? LogLevel.INFO,
+  loki: {
+    enabled: false,
+    host: 'localhost',
+    port: 3100,
+    protocol: 'http',
+    labels: {
+      service: 'npm-package-tester',
+      environment: 'development',
+    },
+    batchSize: 250,
+    interval: 5000,
+    timeout: 15000,
+  },
+  enableConsoleTransport: true,
+  enableFileTransport: false,
+  fileLogPath: './logs',
+  maxFileSize: '25m',
+  maxFiles: 5,
+  includeTimestamp: true,
+  includeMeta: true,
+});
 
 const logger = getLogger();
 const program = new Command();
@@ -110,7 +138,7 @@ program
         } else if (result.package.type?.isLibrary) {
           logger.info('📚 Library Package detected');
           logger.info(
-            '   Run with --ai-provider <provider> --ai-token <token> for AI-powered library testing'
+            '   Run with --ai-provider <provider> --ai-token <token> for AI-powered library testing',
           );
         } else {
           logger.info('📚 Tip: This package has no detectable CLI commands or library exports');

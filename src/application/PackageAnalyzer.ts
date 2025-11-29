@@ -88,7 +88,7 @@ export class PackageAnalyzer {
   private extractPackageInfo(
     packageJson: Dictionary<unknown>,
     exports?: LibraryExports,
-    type?: PackageType
+    type?: PackageType,
   ): PackageInfo {
     const name = packageJson.name as string;
     const version = packageJson.version as string;
@@ -198,7 +198,7 @@ export class PackageAnalyzer {
   private determineCommandType(
     commandName: string,
     packageName: string,
-    isFirst: boolean
+    isFirst: boolean,
   ): CommandType {
     // If command name matches package name, it's primary
     if (commandName === packageName) {

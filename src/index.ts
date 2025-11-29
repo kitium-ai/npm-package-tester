@@ -31,7 +31,7 @@ import type { TestConfig, PackageTestSummary, PackageInfo } from './domain/model
  */
 export async function testPackage(
   packageSource: string,
-  config?: Partial<TestConfig>
+  config?: Partial<TestConfig>,
 ): Promise<PackageTestSummary> {
   const runner = new TestRunner();
   return await runner.testPackage(packageSource, config || {});

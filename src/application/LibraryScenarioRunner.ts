@@ -14,7 +14,7 @@ export class LibraryScenarioRunner {
   async runScenario(
     containerId: string,
     scenario: LibraryTestScenario,
-    nodeVersion: string
+    nodeVersion: string,
   ): Promise<LibraryTestResult> {
     const startTime = Date.now();
 
@@ -183,7 +183,7 @@ try {
    */
   private getErrorMessage(
     result: { stdout: string; stderr: string; exitCode: number },
-    scenario: LibraryTestScenario
+    scenario: LibraryTestScenario,
   ): string {
     if (result.stderr) {
       return result.stderr.split('\n')[0];

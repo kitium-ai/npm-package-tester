@@ -21,12 +21,12 @@ describe('DockerManager', () => {
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('//registry.npmjs.org/:_authToken=test-token')
+        expect.stringContaining('//registry.npmjs.org/:_authToken=test-token'),
       );
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('always-auth=true')
+        expect.stringContaining('always-auth=true'),
       );
 
       mockCreateFile.mockRestore();
@@ -40,7 +40,7 @@ describe('DockerManager', () => {
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('registry=https://npm.custom.com')
+        expect.stringContaining('registry=https://npm.custom.com'),
       );
 
       mockCreateFile.mockRestore();
@@ -52,23 +52,23 @@ describe('DockerManager', () => {
       await dockerManager.configureNpmAuth(
         'container-id',
         'custom-token',
-        'https://npm.company.com'
+        'https://npm.company.com',
       );
 
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('registry=https://npm.company.com')
+        expect.stringContaining('registry=https://npm.company.com'),
       );
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('//npm.company.com/:_authToken=custom-token')
+        expect.stringContaining('//npm.company.com/:_authToken=custom-token'),
       );
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('always-auth=true')
+        expect.stringContaining('always-auth=true'),
       );
 
       mockCreateFile.mockRestore();
@@ -90,13 +90,13 @@ describe('DockerManager', () => {
       await dockerManager.configureNpmAuth(
         'container-id',
         'token123',
-        'https://npm.pkg.github.com/'
+        'https://npm.pkg.github.com/',
       );
 
       expect(mockCreateFile).toHaveBeenCalledWith(
         'container-id',
         '/root/.npmrc',
-        expect.stringContaining('//npm.pkg.github.com/:_authToken=token123')
+        expect.stringContaining('//npm.pkg.github.com/:_authToken=token123'),
       );
 
       mockCreateFile.mockRestore();
@@ -119,13 +119,13 @@ describe('DockerManager', () => {
         'test-package',
         undefined,
         'npm-token',
-        'https://registry.com'
+        'https://registry.com',
       );
 
       expect(mockConfigureAuth).toHaveBeenCalledWith(
         'container-id',
         'npm-token',
-        'https://registry.com'
+        'https://registry.com',
       );
       expect(mockExecuteCommand).toHaveBeenCalledWith('container-id', [
         'npm',
@@ -170,7 +170,7 @@ describe('DockerManager', () => {
 
       expect(mockExecuteCommand).toHaveBeenCalledWith(
         'container-id',
-        expect.arrayContaining(['sh', '-c'])
+        expect.arrayContaining(['sh', '-c']),
       );
 
       mockExecuteCommand.mockRestore();
