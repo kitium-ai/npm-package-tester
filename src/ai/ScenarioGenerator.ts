@@ -19,7 +19,7 @@ export class ScenarioGenerator {
   async generateScenarios(
     packageInfo: PackageInfo,
     aiConfig: AIConfig,
-    containerId?: string,
+    containerId?: string
   ): Promise<TestScenario[]> {
     // Get CLI help output
     let cliHelp = '';
@@ -47,7 +47,7 @@ export class ScenarioGenerator {
       readme,
       cliHelp,
       packageInfo.commands.map((c) => c.name),
-      packageInfo.examples,
+      packageInfo.examples
     );
 
     return scenarios;

@@ -138,7 +138,7 @@ program
         } else if (result.package.type?.isLibrary) {
           logger.info('📚 Library Package detected');
           logger.info(
-            '   Run with --ai-provider <provider> --ai-token <token> for AI-powered library testing',
+            '   Run with --ai-provider <provider> --ai-token <token> for AI-powered library testing'
           );
         } else {
           logger.info('📚 Tip: This package has no detectable CLI commands or library exports');
@@ -173,9 +173,8 @@ program
     logger.info('Analyzing package...');
 
     try {
-      const { PackageAnalyzer: packageAnalyzerClass } = await import(
-        '../application/PackageAnalyzer'
-      );
+      const { PackageAnalyzer: packageAnalyzerClass } =
+        await import('../application/PackageAnalyzer');
       const analyzer = new packageAnalyzerClass();
 
       const packageInfo = await analyzer.analyze(packageSource);

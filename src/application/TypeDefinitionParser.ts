@@ -347,7 +347,7 @@ export class TypeDefinitionParser {
   private isExported(node: ts.Node): boolean {
     const modifiers = (node as ts.Node & { modifiers?: ts.NodeArray<ts.ModifierLike> }).modifiers;
     return Boolean(
-      modifiers && modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword),
+      modifiers && modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
     );
   }
 }
