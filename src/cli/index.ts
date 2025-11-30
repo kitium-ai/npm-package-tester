@@ -161,7 +161,7 @@ program
         } else if (result.package.type?.isLibrary) {
           logger.info('📚 Library Package detected');
           logger.info(
-            '   Run with --ai-provider <provider> --ai-token <token> for AI-powered library testing',
+            '   Run with --ai-provider <provider> --ai-token <token> for AI-powered library testing'
           );
         } else {
           logger.info('📚 Tip: This package has no detectable CLI commands or library exports');

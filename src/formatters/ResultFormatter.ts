@@ -65,7 +65,7 @@ export class ResultFormatter {
 
     // Separate CLI and library tests
     const inferredCliResults = summary.results.filter(
-      (result): result is CommandTestResult => 'command' in result,
+      (result): result is CommandTestResult => 'command' in result
     );
     const cliTests = summary.cliResults ?? inferredCliResults;
     const libraryTests = summary.libraryResults ?? [];
@@ -84,7 +84,7 @@ export class ResultFormatter {
         for (const test of cliDefaultTests) {
           const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
           lines.push(
-            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`
           );
           if (!test.passed && test.error) {
             lines.push(`        ${chalk.red(test.error)}`);
@@ -101,7 +101,7 @@ export class ResultFormatter {
               ? ` ${(test as CommandTestResult).args!.join(' ')}`
               : '';
           lines.push(
-            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name}${args} ${chalk.gray(`(${test.duration}ms)`)}`,
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name}${args} ${chalk.gray(`(${test.duration}ms)`)}`
           );
           if (!test.passed && test.error) {
             lines.push(`        ${chalk.red(test.error)}`);
@@ -114,7 +114,7 @@ export class ResultFormatter {
         for (const test of cliCustomTests) {
           const icon = test.passed ? chalk.green('    ✓') : chalk.red('    ✗');
           lines.push(
-            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`,
+            `    ${icon} ${test.scenarioName || (test as CommandTestResult).command.name} ${chalk.gray(`(${test.duration}ms)`)}`
           );
           if (!test.passed && test.error) {
             lines.push(`        ${chalk.red(test.error)}`);
@@ -257,7 +257,7 @@ export class ResultFormatter {
    * Group results by Node version
    */
   private groupByNodeVersion(
-    results: readonly CommandTestResult[],
+    results: readonly CommandTestResult[]
   ): Record<string, CommandTestResult[]> {
     const grouped: Record<string, CommandTestResult[]> = {};
 
@@ -308,7 +308,7 @@ export class ResultFormatter {
     // Overall validation status
     const statusIcon = validation.valid ? chalk.green('✓') : chalk.yellow('⚠️');
     lines.push(
-      `${statusIcon} ${validation.valid ? 'Type definitions valid' : 'Some type issues found'}`,
+      `${statusIcon} ${validation.valid ? 'Type definitions valid' : 'Some type issues found'}`
     );
     lines.push('');
 
@@ -317,7 +317,7 @@ export class ResultFormatter {
     lines.push(`  Untyped Exports: ${chalk.yellow(validation.untypedExports)}`);
     lines.push(`  Undocumented Exports: ${chalk.yellow(validation.undocumentedExports)}`);
     lines.push(
-      `  Documentation Coverage: ${this.getCoverageBar(validation.documentationCoverage)}`,
+      `  Documentation Coverage: ${this.getCoverageBar(validation.documentationCoverage)}`
     );
     lines.push('');
 

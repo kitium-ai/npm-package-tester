@@ -17,7 +17,7 @@ export interface AILibraryProviderClient {
     packageDescription: string,
     readme: string,
     libraryExports: LibraryExports,
-    examples?: readonly CLIExample[],
+    examples?: readonly CLIExample[]
   ): Promise<LibraryTestScenario[]>;
 }
 
@@ -28,7 +28,7 @@ export class LibraryScenarioGenerator {
   async generateScenarios(
     packageInfo: PackageInfo,
     libraryExports: LibraryExports,
-    aiConfig: AIConfig,
+    aiConfig: AIConfig
   ): Promise<LibraryTestScenario[]> {
     // Get README (if available from npm)
     const readme = await this.fetchReadme(packageInfo.name);
@@ -42,7 +42,7 @@ export class LibraryScenarioGenerator {
       readme,
       libraryExports,
       packageInfo.examples,
-      aiProvider,
+      aiProvider
     );
 
     return scenarios;
@@ -57,14 +57,14 @@ export class LibraryScenarioGenerator {
     readme: string,
     libraryExports: LibraryExports,
     examples: readonly CLIExample[] | undefined,
-    aiProvider: AILibraryProviderClient,
+    aiProvider: AILibraryProviderClient
   ): Promise<LibraryTestScenario[]> {
     const response = await aiProvider.generateLibraryScenarios(
       packageName,
       packageDescription,
       readme,
       libraryExports,
-      examples,
+      examples
     );
 
     return response;
