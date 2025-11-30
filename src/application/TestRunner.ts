@@ -93,10 +93,12 @@ export class TestRunner {
 
       const registryPolicy = this.policyManager.validateRegistry(
         testConfig.policy,
-        testConfig.npmRegistry,
+        testConfig.npmRegistry
       );
       if (registryPolicy && !registryPolicy.passed) {
-        throw new Error(`Policy violation: ${registryPolicy.violations.map((v) => v.message).join('; ')}`);
+        throw new Error(
+          `Policy violation: ${registryPolicy.violations.map((v) => v.message).join('; ')}`
+        );
       }
 
       // Run tests
@@ -169,7 +171,7 @@ export class TestRunner {
   private async runTests(
     packageInfo: PackageInfo,
     config: TestConfig,
-    onProgress?: (event: ProgressEvent) => void,
+    onProgress?: (event: ProgressEvent) => void
   ): Promise<{
     cliResults: CommandTestResult[];
     libraryResults: LibraryTestResult[];
@@ -189,7 +191,9 @@ export class TestRunner {
       const baseImage = config.baseImage ?? `node:${nodeVersion}-alpine`;
       policyReport = this.policyManager.evaluate(config.policy, nodeVersion, baseImage);
       if (policyReport && !policyReport.passed) {
-        throw new Error(`Policy violation: ${policyReport.violations.map((v) => v.message).join('; ')}`);
+        throw new Error(
+          `Policy violation: ${policyReport.violations.map((v) => v.message).join('; ')}`
+        );
       }
 
       const environment: TestEnvironment = {
@@ -217,7 +221,7 @@ export class TestRunner {
       const complianceResult = await this.complianceManager.runCompliance(
         container.id,
         packageInfo.name,
-        config.compliance,
+        config.compliance
       );
       complianceReport = complianceResult ?? complianceReport;
 

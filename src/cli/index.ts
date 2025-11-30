@@ -83,7 +83,10 @@ program
   .option('--ai-model <model>', 'AI model name (optional, auto-detects best)')
   .option('--base-image <image>', 'Custom base Docker image to use for tests')
   .option('--allowed-registry <url>', 'Enforce a single allowed registry')
-  .option('--compliance-artifacts <dir>', 'Directory to persist compliance artifacts inside container')
+  .option(
+    '--compliance-artifacts <dir>',
+    'Directory to persist compliance artifacts inside container'
+  )
   .option('--no-audit', 'Disable vulnerability scan')
   .option('--no-sbom', 'Disable SBOM generation')
   .option('--no-license-check', 'Disable license checks')

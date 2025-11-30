@@ -19,25 +19,32 @@ export class ComplianceManager {
   async runCompliance(
     containerId: string,
     packageName: string,
-    config?: ComplianceConfig,
+    config?: ComplianceConfig
   ): Promise<ComplianceReport | undefined> {
     if (!config || config.enabled === false) {
       return undefined;
     }
 
-    const report: ComplianceReport = {};
+    const sbom =
+      config.sbom !== false ? await this.generateSBOM(containerId, packageName) : undefined;
+    const vulnerabilities = config.audit !== false ? await this.runAudit(containerId) : undefined;
+    const licenses =
+      config.licenseCheck !== false
+        ? await this.collectLicenses(containerId, packageName)
+        : undefined;
 
-    if (config.sbom !== false) {
-      report.sbom = await this.generateSBOM(containerId, packageName);
+    const reportData: Record<string, unknown> = {};
+    if (sbom) {
+      (reportData as Record<string, SBOMReport>).sbom = sbom;
+    }
+    if (vulnerabilities) {
+      (reportData as Record<string, VulnerabilityReport>).vulnerabilities = vulnerabilities;
+    }
+    if (licenses) {
+      (reportData as Record<string, LicenseReport>).licenses = licenses;
     }
 
-    if (config.audit !== false) {
-      report.vulnerabilities = await this.runAudit(containerId);
-    }
-
-    if (config.licenseCheck !== false) {
-      report.licenses = await this.collectLicenses(containerId, packageName);
-    }
+    const report: ComplianceReport = reportData as ComplianceReport;
 
     if (config.artifactDir) {
       await this.persistArtifacts(containerId, config.artifactDir, report);
@@ -47,11 +54,7 @@ export class ComplianceManager {
   }
 
   private async generateSBOM(containerId: string, packageName: string): Promise<SBOMReport> {
-    const result = await this.dockerManager.executeCommand(containerId, [
-      'npm',
-      'list',
-      '--json',
-    ]);
+    const result = await this.dockerManager.executeCommand(containerId, ['npm', 'list', '--json']);
 
     let components: SBOMComponent[] = [];
     try {
@@ -68,15 +71,24 @@ export class ComplianceManager {
     };
   }
 
-  private flattenDependencies(deps: Record<string, any>, prefix = ''): SBOMComponent[] {
+  private flattenDependencies(deps: Record<string, unknown>, prefix = ''): SBOMComponent[] {
     const components: SBOMComponent[] = [];
 
     for (const [name, info] of Object.entries(deps)) {
-      const version = typeof info === 'object' && info.version ? info.version : 'unknown';
+      let version = 'unknown';
+      if (typeof info === 'object' && info !== null && 'version' in info) {
+        const versionValue = (info as Record<string, unknown>).version;
+        version = typeof versionValue === 'string' ? versionValue : String(versionValue);
+      }
       components.push({ name, version, path: prefix });
 
-      if (info && typeof info === 'object' && info.dependencies) {
-        components.push(...this.flattenDependencies(info.dependencies, `${prefix}${name}>`));
+      if (typeof info === 'object' && info !== null && 'dependencies' in info) {
+        const depValue = (info as Record<string, unknown>).dependencies;
+        if (typeof depValue === 'object' && depValue !== null) {
+          components.push(
+            ...this.flattenDependencies(depValue as Record<string, unknown>, `${prefix}${name}>`)
+          );
+        }
       }
     }
 
@@ -92,30 +104,42 @@ export class ComplianceManager {
     ]);
 
     try {
-      const parsed = JSON.parse(result.stdout || '{}');
+      const parsed = JSON.parse(result.stdout || '{}') as Record<string, unknown>;
       const findings: SecurityFinding[] = [];
 
-      if (parsed.advisories) {
-        for (const advisory of Object.values(parsed.advisories) as any[]) {
-          findings.push({
-            title: advisory.title,
-            severity: advisory.severity ?? 'unknown',
-            dependency: advisory.module_name,
-            via: advisory.cves?.[0],
-            url: advisory.url,
-          });
+      // Process advisories if present
+      const advisories = parsed.advisories;
+      if (advisories && typeof advisories === 'object') {
+        for (const advisory of Object.values(advisories)) {
+          if (advisory && typeof advisory === 'object') {
+            const adv = advisory as Record<string, unknown>;
+            const severity = this.normalizeSeverity(adv.severity);
+            findings.push({
+              title: String(adv.title ?? 'Advisory'),
+              severity,
+              dependency: String(adv.module_name ?? 'unknown'),
+              via: this.extractCveString(adv.cves),
+              url: adv.url ? String(adv.url) : undefined,
+            });
+          }
         }
       }
 
-      if (Array.isArray(parsed.vulnerabilities)) {
-        for (const vuln of parsed.vulnerabilities) {
-          findings.push({
-            title: vuln.title ?? vuln.name ?? 'Vulnerability',
-            severity: vuln.severity ?? 'unknown',
-            dependency: vuln.name ?? 'unknown',
-            via: vuln.via?.[0]?.source,
-            url: vuln.url,
-          });
+      // Process vulnerabilities if present
+      const vulnerabilities = parsed.vulnerabilities;
+      if (Array.isArray(vulnerabilities)) {
+        for (const vuln of vulnerabilities) {
+          if (vuln && typeof vuln === 'object') {
+            const v = vuln as Record<string, unknown>;
+            const severity = this.normalizeSeverity(v.severity);
+            findings.push({
+              title: String(v.title ?? v.name ?? 'Vulnerability'),
+              severity,
+              dependency: String(v.name ?? 'unknown'),
+              via: this.extractViaString(v.via),
+              url: v.url ? String(v.url) : undefined,
+            });
+          }
         }
       }
 
@@ -125,10 +149,32 @@ export class ComplianceManager {
     }
   }
 
-  private async collectLicenses(
-    containerId: string,
-    packageName: string,
-  ): Promise<LicenseReport> {
+  private normalizeSeverity(severity: unknown): 'critical' | 'high' | 'medium' | 'low' | 'unknown' {
+    if (typeof severity === 'string' && ['critical', 'high', 'medium', 'low'].includes(severity)) {
+      return severity as 'critical' | 'high' | 'medium' | 'low';
+    }
+    return 'unknown';
+  }
+
+  private extractCveString(cves: unknown): string | undefined {
+    if (Array.isArray(cves) && cves.length > 0) {
+      return String(cves[0]);
+    }
+    return undefined;
+  }
+
+  private extractViaString(via: unknown): string | undefined {
+    if (Array.isArray(via) && via.length > 0) {
+      const viaItem = via[0];
+      if (viaItem && typeof viaItem === 'object') {
+        const source = (viaItem as Record<string, unknown>).source;
+        return String(source ?? 'unknown');
+      }
+    }
+    return undefined;
+  }
+
+  private async collectLicenses(containerId: string, packageName: string): Promise<LicenseReport> {
     const result = await this.dockerManager.executeCommand(containerId, [
       'npm',
       'view',
@@ -148,7 +194,11 @@ export class ComplianceManager {
         });
       }
     } catch {
-      issues.push({ dependency: packageName, license: 'unknown', message: 'Unable to resolve license' });
+      issues.push({
+        dependency: packageName,
+        license: 'unknown',
+        message: 'Unable to resolve license',
+      });
     }
 
     return { issues };
@@ -157,13 +207,13 @@ export class ComplianceManager {
   private async persistArtifacts(
     containerId: string,
     dir: string,
-    report: ComplianceReport,
+    report: ComplianceReport
   ): Promise<void> {
     await this.dockerManager.createDirectory(containerId, dir);
     await this.dockerManager.createFile(
       containerId,
       `${dir.replace(/\/$/, '')}/compliance-report.json`,
-      JSON.stringify(report, null, 2),
+      JSON.stringify(report, null, 2)
     );
   }
 }

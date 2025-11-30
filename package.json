@@ -1,6 +1,6 @@
 {
   "name": "@kitiumai/npm-package-tester",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "AI-powered CLI testing tool for npm packages with Docker isolation, private package support, and automated test generation using Claude, GPT-4, Gemini",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
