@@ -17,6 +17,8 @@ import {
   LibraryExports,
   TypeValidationReport,
   ValidationIssue,
+  ComplianceReport,
+  PolicyReport,
 } from 'domain/models/types';
 import { DockerManager } from './DockerManager';
 import { PackageAnalyzer } from './PackageAnalyzer';
@@ -27,6 +29,8 @@ import { LibraryScenarioGenerator } from 'ai/LibraryScenarioGenerator';
 import { JSDocAnalyzer } from './JSDocAnalyzer';
 import { getLogger } from '@kitiumai/logger';
 import { deepMerge } from '@kitiumai/utils-ts';
+import { ComplianceManager } from './ComplianceManager';
+import { PolicyManager } from './PolicyManager';
 
 export class TestRunner {
   private readonly dockerManager: DockerManager;
@@ -36,6 +40,8 @@ export class TestRunner {
   private readonly libraryScenarioRunner: LibraryScenarioRunner;
   private readonly libraryScenarioGenerator: LibraryScenarioGenerator;
   private readonly jsDocAnalyzer: JSDocAnalyzer;
+  private readonly complianceManager: ComplianceManager;
+  private readonly policyManager: PolicyManager;
   private readonly logger = getLogger();
 
   constructor() {
@@ -46,6 +52,8 @@ export class TestRunner {
     this.libraryScenarioRunner = new LibraryScenarioRunner(this.dockerManager);
     this.libraryScenarioGenerator = new LibraryScenarioGenerator();
     this.jsDocAnalyzer = new JSDocAnalyzer();
+    this.complianceManager = new ComplianceManager(this.dockerManager);
+    this.policyManager = new PolicyManager();
   }
 
   /**
@@ -57,6 +65,8 @@ export class TestRunner {
     onProgress?: (event: ProgressEvent) => void
   ): Promise<PackageTestSummary> {
     const startTime = Date.now();
+    const policyViolations: PolicyReport[] = [];
+    let compliance: ComplianceReport | undefined;
 
     try {
       // Analyze package
@@ -81,13 +91,25 @@ export class TestRunner {
       // Prepare test config
       const testConfig = this.prepareConfig(config);
 
+      const registryPolicy = this.policyManager.validateRegistry(
+        testConfig.policy,
+        testConfig.npmRegistry,
+      );
+      if (registryPolicy && !registryPolicy.passed) {
+        throw new Error(`Policy violation: ${registryPolicy.violations.map((v) => v.message).join('; ')}`);
+      }
+
       // Run tests
-      const { cliResults, libraryResults } = await this.runTests(
+      const { cliResults, libraryResults, complianceReport, policyReport } = await this.runTests(
         packageInfo,
         testConfig,
         onProgress
       );
       const allResults = [...cliResults, ...libraryResults];
+      compliance = complianceReport ?? compliance;
+      if (policyReport) {
+        policyViolations.push(policyReport);
+      }
 
       // Validate types if library package
       this.emitProgress(onProgress, {
@@ -109,6 +131,14 @@ export class TestRunner {
         cliResults: cliResults.length > 0 ? cliResults : undefined,
         libraryResults: libraryResults.length > 0 ? libraryResults : undefined,
         typeValidation,
+        compliance,
+        policy:
+          policyViolations.length > 0
+            ? {
+                passed: policyViolations.every((p) => p.passed),
+                violations: policyViolations.flatMap((p) => p.violations),
+              }
+            : undefined,
         total: allResults.length,
         passed: allResults.filter((r) => r.passed).length,
         failed: allResults.filter((r) => !r.passed).length,
@@ -139,20 +169,33 @@ export class TestRunner {
   private async runTests(
     packageInfo: PackageInfo,
     config: TestConfig,
-    onProgress?: (event: ProgressEvent) => void
-  ): Promise<{ cliResults: CommandTestResult[]; libraryResults: LibraryTestResult[] }> {
+    onProgress?: (event: ProgressEvent) => void,
+  ): Promise<{
+    cliResults: CommandTestResult[];
+    libraryResults: LibraryTestResult[];
+    complianceReport?: ComplianceReport;
+    policyReport?: PolicyReport;
+  }> {
     const cliResults: CommandTestResult[] = [];
     const libraryResults: LibraryTestResult[] = [];
+    let complianceReport: ComplianceReport | undefined;
+    let policyReport: PolicyReport | undefined;
 
     // Determine if we should test library exports
     const hasLibrary = packageInfo.type?.isLibrary && packageInfo.exports;
     const hasCLI = packageInfo.commands.length > 0;
 
     for (const nodeVersion of config.nodeVersions) {
+      const baseImage = config.baseImage ?? `node:${nodeVersion}-alpine`;
+      policyReport = this.policyManager.evaluate(config.policy, nodeVersion, baseImage);
+      if (policyReport && !policyReport.passed) {
+        throw new Error(`Policy violation: ${policyReport.violations.map((v) => v.message).join('; ')}`);
+      }
+
       const environment: TestEnvironment = {
         nodeVersion,
         packageManager: PackageManager.NPM,
-        baseImage: `node:${nodeVersion}-alpine`,
+        baseImage,
       };
 
       // Create container
@@ -170,6 +213,13 @@ export class TestRunner {
         config.npmToken,
         config.npmRegistry
       );
+
+      const complianceResult = await this.complianceManager.runCompliance(
+        container.id,
+        packageInfo.name,
+        config.compliance,
+      );
+      complianceReport = complianceResult ?? complianceReport;
 
       // Generate AI scenarios if configured
       if (config.ai) {
@@ -299,7 +349,7 @@ export class TestRunner {
       }
     }
 
-    return { cliResults, libraryResults };
+    return { cliResults, libraryResults, complianceReport, policyReport };
   }
 
   /**
@@ -506,6 +556,9 @@ export class TestRunner {
       ai: partial.ai,
       npmToken: partial.npmToken,
       npmRegistry: partial.npmRegistry,
+      compliance: partial.compliance,
+      policy: partial.policy,
+      baseImage: partial.baseImage,
     };
 
     // deepMerge expects a record; cast to and from unknown to satisfy the constraint

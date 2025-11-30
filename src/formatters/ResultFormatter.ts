@@ -8,6 +8,8 @@ import {
   CommandTestResult,
   ProgressEvent,
   TypeValidationReport,
+  ComplianceReport,
+  PolicyReport,
 } from 'domain/models/types';
 
 export class ResultFormatter {
@@ -164,6 +166,20 @@ export class ResultFormatter {
       lines.push('');
     }
 
+    if (summary.policy) {
+      lines.push(chalk.bold('🛡️ Policy Checks'));
+      lines.push(chalk.gray('─'.repeat(50)));
+      lines.push(this.formatPolicy(summary.policy));
+      lines.push('');
+    }
+
+    if (summary.compliance) {
+      lines.push(chalk.bold('📜 Compliance & Security'));
+      lines.push(chalk.gray('─'.repeat(50)));
+      lines.push(this.formatCompliance(summary.compliance));
+      lines.push('');
+    }
+
     // Final result
     if (summary.success) {
       lines.push(chalk.green.bold('✅ All tests passed!'));
@@ -192,6 +208,31 @@ export class ResultFormatter {
     }
 
     return line;
+  }
+
+  private formatCompliance(report: ComplianceReport): string {
+    const lines: string[] = [];
+    if (report.sbom) {
+      lines.push(`  SBOM generated with ${report.sbom.components.length} components`);
+    }
+    if (report.vulnerabilities) {
+      const total = report.vulnerabilities.findings.length;
+      lines.push(`  Vulnerability scan: ${total === 0 ? 'no findings' : `${total} finding(s)`}`);
+    }
+    if (report.licenses) {
+      lines.push(`  License entries: ${report.licenses.issues.length}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  private formatPolicy(report: PolicyReport): string {
+    if (report.passed) {
+      return '  ✅ All policy checks passed';
+    }
+
+    const violations = report.violations.map((v) => `  ❌ ${v.rule}: ${v.message}`);
+    return violations.join('\n');
   }
 
   /**

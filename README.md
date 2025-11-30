@@ -105,6 +105,7 @@ When you publish an npm package, you need to verify:
 - 📊 **Detailed Reports**: Clear pass/fail results with complete test breakdown
 - 🔐 **Private Packages**: Full support for private npm packages with authentication
 - 📦 **Custom Registries**: Works with private npm registries (npm, GitHub, GitLab, etc.)
+- 🛡️ **Enterprise Governance**: Policy gates for registries/base images and compliance add-ons (SBOM, audit, license checks)
 - 💨 **Lightweight**: Minimal dependencies, fast execution
 
 ## Quick Start
@@ -344,6 +345,18 @@ Create `.npmtestrc.json`:
   "nodeVersions": ["16", "18", "20"],
   "parallel": true,
   "timeout": 30000,
+  "baseImage": "node:20-alpine3.19",
+  "policy": {
+    "allowedRegistries": ["https://registry.npmjs.org"],
+    "allowedNodeVersions": ["18", "20"]
+  },
+  "compliance": {
+    "enabled": true,
+    "sbom": true,
+    "audit": true,
+    "licenseCheck": true,
+    "artifactDir": "/artifacts/security"
+  },
   "customTests": [
     {
       "name": "Generate help",
@@ -364,6 +377,9 @@ import { testPackage } from 'npm-package-tester';
 
 const results = await testPackage('eslint', {
   nodeVersions: ['20'],
+  baseImage: 'node:20-bookworm',
+  policy: { allowedRegistries: ['https://registry.npmjs.org'] },
+  compliance: { audit: true, sbom: true },
   parallel: false,
 });
 
@@ -385,10 +401,34 @@ Options:
   --ai-provider <provider>     AI provider (anthropic, openai, google, groq)
   --ai-token <token>           AI API token/key
   --ai-model <model>           AI model name (optional, auto-detects best)
+  --base-image <image>         Custom Docker base image (e.g., node:20-bookworm)
+  --allowed-registry <url>     Enforce a single allowed registry (policy gate)
+  --compliance-artifacts <dir> Directory to persist audit/SBOM artifacts
+  --no-audit                   Disable vulnerability scanning
+  --no-sbom                    Disable SBOM generation
+  --no-license-check           Disable license checks
   --no-help                    Skip --help tests
   --no-version                 Skip --version tests
   -v, --verbose                Verbose output
 ```
+
+## Enterprise Compliance & Governance
+
+- **Policy gates**: Deny unapproved registries, enforce allowed Node versions/base images for deterministic builds.
+- **SBOM generation**: Lightweight dependency inventory via `npm list --json` (persist with `--compliance-artifacts`).
+- **Security auditing**: `npm audit --json` runs inside the isolated container so tokens never leave the sandbox.
+- **License capture**: Fetches the published license for the tested package for audit trails.
+
+### Example: locked-down registry and artifacts
+
+```bash
+npt test @your-scope/package \
+  --allowed-registry https://registry.npmjs.org \
+  --base-image node:20-bookworm \
+  --compliance-artifacts /audit
+```
+
+The compliance report is written to `/audit/compliance-report.json` inside the container, alongside SBOM and audit findings.
 
 ## AI-Powered Testing
 

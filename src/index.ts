@@ -14,6 +14,12 @@ export type {
   PackageManager,
   ProgressEvent,
   TestStage,
+  ComplianceConfig,
+  ComplianceReport,
+  SBOMReport,
+  VulnerabilityReport,
+  PolicyConfig,
+  PolicyReport,
 } from './domain/models/types';
 
 // Export main components
