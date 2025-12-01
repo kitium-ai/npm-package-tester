@@ -25,4 +25,15 @@ export default [
       '@typescript-eslint/require-await': 'off',
     },
   },
+  {
+    files: ['src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: ['../../*'],
+        },
+      ],
+    },
+  },
 ];

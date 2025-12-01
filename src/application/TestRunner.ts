@@ -28,9 +28,15 @@ import { LibraryScenarioRunner } from './LibraryScenarioRunner';
 import { LibraryScenarioGenerator } from 'ai/LibraryScenarioGenerator';
 import { JSDocAnalyzer } from './JSDocAnalyzer';
 import { getLogger } from '@kitiumai/logger';
-import { deepMerge } from '@kitiumai/utils-ts';
+import { deepMerge, compact } from '@kitiumai/utils-ts';
 import { ComplianceManager } from './ComplianceManager';
 import { PolicyManager } from './PolicyManager';
+import {
+  createPackageAnalysisError,
+  createDockerError,
+  createPolicyError,
+  extractErrorMetadata,
+} from '../utils/errors';
 
 export class TestRunner {
   private readonly dockerManager: DockerManager;
@@ -68,6 +74,11 @@ export class TestRunner {
     const policyViolations: PolicyReport[] = [];
     let compliance: ComplianceReport | undefined;
 
+    this.logger.info('Starting package testing', {
+      packageSource,
+      nodeVersions: config.nodeVersions?.join(','),
+    });
+
     try {
       // Analyze package
       this.emitProgress(onProgress, {
@@ -75,7 +86,23 @@ export class TestRunner {
         message: `Analyzing package: ${packageSource}`,
       });
 
-      const packageInfo = await this.packageAnalyzer.analyze(packageSource);
+      let packageInfo: PackageInfo;
+      try {
+        packageInfo = await this.packageAnalyzer.analyze(packageSource);
+        this.logger.debug('Package analysis completed', {
+          packageName: packageInfo.name,
+          version: packageInfo.version,
+          commandCount: packageInfo.commands.length,
+          isLibrary: packageInfo.type?.isLibrary,
+          isCLI: packageInfo.type?.isCLI,
+        });
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        const analysisError = createPackageAnalysisError('analyze', packageSource, errorMsg);
+        const errorMetadata = extractErrorMetadata(analysisError);
+        this.logger.error('Package analysis failed', { ...errorMetadata });
+        throw analysisError;
+      }
 
       this.emitProgress(onProgress, {
         stage: TestStage.DETECTING_COMMANDS,
@@ -85,8 +112,13 @@ export class TestRunner {
       // Check Docker
       const dockerAvailable = await this.dockerManager.isDockerAvailable();
       if (!dockerAvailable) {
-        throw new Error('Docker is not available. Please ensure Docker is installed and running.');
+        const dockerError = createDockerError('isDockerAvailable', 'Docker daemon not responding');
+        const errorMetadata = extractErrorMetadata(dockerError);
+        this.logger.error('Docker is not available', { ...errorMetadata });
+        throw dockerError;
       }
+
+      this.logger.debug('Docker is available and ready');
 
       // Prepare test config
       const testConfig = this.prepareConfig(config);
@@ -96,9 +128,16 @@ export class TestRunner {
         testConfig.npmRegistry
       );
       if (registryPolicy && !registryPolicy.passed) {
-        throw new Error(
-          `Policy violation: ${registryPolicy.violations.map((v) => v.message).join('; ')}`
-        );
+        const violations = compact(registryPolicy.violations.map((v) => v.message));
+        const policyViolationError = createPolicyError('registry', violations.join('; '), {
+          registry: testConfig.npmRegistry,
+        });
+        const errorMetadata = extractErrorMetadata(policyViolationError);
+        this.logger.warn('Registry policy validation failed', {
+          ...errorMetadata,
+          violations: violations.length,
+        });
+        throw policyViolationError;
       }
 
       // Run tests
@@ -152,8 +191,26 @@ export class TestRunner {
         stage: TestStage.COMPLETED,
         message: `Testing completed: ${summary.passed}/${summary.total} passed`,
       });
+      this.logger.info('Package testing completed', {
+        packageName: packageInfo.name,
+        duration,
+        totalTests: summary.total,
+        passed: summary.passed,
+        failed: summary.failed,
+        success: summary.success,
+        policyViolations: policyViolations.length,
+      });
 
       return summary;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error('Package testing failed', {
+        packageSource,
+        duration,
+        error: errorMsg,
+      });
+      throw error;
     } finally {
       // Cleanup
       this.emitProgress(onProgress, {
@@ -161,7 +218,14 @@ export class TestRunner {
         message: 'Cleaning up containers',
       });
 
-      await this.dockerManager.cleanup(config.keepContainers || false);
+      try {
+        await this.dockerManager.cleanup(config.keepContainers || false);
+        this.logger.debug('Cleanup completed');
+      } catch (cleanupError) {
+        const errorMsg =
+          cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+        this.logger.warn('Cleanup failed', { error: errorMsg });
+      }
     }
   }
 

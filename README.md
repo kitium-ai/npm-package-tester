@@ -386,6 +386,46 @@ const results = await testPackage('eslint', {
 console.log(`Passed: ${results.passed}/${results.total}`);
 ```
 
+### Tree-Shaking and Subpath Exports
+
+The package is fully tree-shakable with granular subpath exports. Import only what you need:
+
+```typescript
+// Import only specific modules - reduces bundle size
+import { PackageAnalyzer } from '@kitiumai/npm-package-tester/analyzer';
+import { TestRunner } from '@kitiumai/npm-package-tester/runner';
+import { DockerManager } from '@kitiumai/npm-package-tester/docker';
+import { ResultFormatter } from '@kitiumai/npm-package-tester/formatter';
+
+// AI utilities (optional)
+import { AIProvider } from '@kitiumai/npm-package-tester/ai/provider';
+import { ScenarioGenerator } from '@kitiumai/npm-package-tester/ai/scenario-generator';
+
+// Types only (zero runtime cost)
+import type { PackageInfo, TestConfig } from '@kitiumai/npm-package-tester/domain';
+
+// Full API (includes everything)
+import { testPackage, analyzePackage } from '@kitiumai/npm-package-tester';
+```
+
+**Available Subpath Exports:**
+- `@kitiumai/npm-package-tester` - Main API with convenience functions
+- `@kitiumai/npm-package-tester/domain` - TypeScript types and interfaces
+- `@kitiumai/npm-package-tester/analyzer` - Package analysis utilities
+- `@kitiumai/npm-package-tester/runner` - Test execution engine
+- `@kitiumai/npm-package-tester/docker` - Docker container management
+- `@kitiumai/npm-package-tester/formatter` - Result formatting utilities
+- `@kitiumai/npm-package-tester/ai` - All AI utilities (barrel export)
+- `@kitiumai/npm-package-tester/ai/provider` - AI provider interface
+- `@kitiumai/npm-package-tester/ai/scenario-generator` - Scenario generation
+- `@kitiumai/npm-package-tester/utils` - Error utilities
+
+**Benefits:**
+- ✅ **Smaller bundles** - Only import what you use
+- ✅ **Faster builds** - Modern bundlers can eliminate unused code
+- ✅ **Better IDE autocomplete** - Clearer import paths
+- ✅ **Zero side effects** - Safe for tree-shaking (`"sideEffects": false`)
+
 ## CLI Options
 
 ```
